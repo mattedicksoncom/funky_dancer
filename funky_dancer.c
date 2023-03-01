@@ -51,6 +51,18 @@ void rotateMeshY(float zRotateAngle, struct mesh *outMesh) {
 	}
 }
 
+void translateMesh(float xShift, struct mesh *outMesh) {
+	int i;
+	for (i = 0; i < outMesh->vertCount; i++) {
+		float x = outMesh->vert[i * 3];
+		float y = outMesh->vert[i * 3 + 1];
+		float z = outMesh->vert[i * 3 + 2];
+		outMesh->vert[i * 3] = x + xShift;
+		outMesh->vert[i * 3 + 1] = y;
+		outMesh->vert[i * 3 + 2] = z;
+	}
+}
+
 void generateSphere(float radius, int subdivisions, struct mesh *outMesh) {
 	int i, j;
 	int vertCount = 0;
@@ -95,11 +107,13 @@ void generateSphere(float radius, int subdivisions, struct mesh *outMesh) {
 	outMesh->faceCount = faceCount / 3;
 }
 
-void line(int x0, int y0, int x1, int y1, SDL_Surface* surface, unsigned int color) { 
-
+// void line(int x0, int y0, int x1, int y1, SDL_Surface* surface, unsigned int color) { 
+void line(int x0, int y0, int x1, int y1, char* pixels, unsigned int color) { 
 	// pitch: the length of a row of pixels in bytes (read-only)
-	const int pitch = surface->pitch;
-	char* pixels = surface->pixels;
+	// const int pitch = surface->pitch;
+	// char* pixels = surface->pixels;
+	// need a bounds check
+	int pitch = sizeof(char) * 2048;
 	
 	bool steep = false; 
 	if (abs(x0-x1) < abs(y0-y1)) { 
@@ -118,13 +132,17 @@ void line(int x0, int y0, int x1, int y1, SDL_Surface* surface, unsigned int col
 	int y = y0; 
 	for (int x = x0; x <= x1; x++) { 
 		if (steep) { 
-			// image.set(y, x, color); 
-			unsigned int* row = (unsigned int*)(pixels + pitch * y);
-			row[x] = color;
+			 //image.set(y, x, color); 
+			if (x >= 0 && x < 512 && y >= 0 && y < 512) {
+				unsigned int* row = (unsigned int*)(pixels + pitch * y);
+				row[x] = color;
+			}
 		} else { 
-			// image.set(x, y, color);
-			unsigned int* row = (unsigned int*)(pixels + pitch * x);
-			row[y] = color;
+			 //image.set(x, y, color);
+			if (x >= 0 && x < 512 && y >= 0 && y < 512) {
+				unsigned int* row = (unsigned int*)(pixels + pitch * x);
+				row[y] = color;
+			}
 		} 
 		error2 += derror2; 
 		if (error2 > dx) { 
@@ -134,13 +152,13 @@ void line(int x0, int y0, int x1, int y1, SDL_Surface* surface, unsigned int col
 	} 
 }
 
-void draw_scene(SDL_Surface* surface, int width, int height, struct mesh *sphereMesh_ptr) {
+//void draw_scene(SDL_Surface* surface, int width, int height, struct mesh *sphereMesh_ptr) {
+void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr) {
 	struct mesh sphereMesh = *sphereMesh_ptr;
 
-	SDL_LockSurface(surface);
+	//int pitch = surface->pitch;
 
-	int pitch = surface->pitch;
-
+	// draw the mesh
 	for (int i = 0; i < sphereMesh.faceCount; i++) {
 		int a = sphereMesh.face[i * 3];
 		int b = sphereMesh.face[i * 3 + 1];
@@ -158,15 +176,14 @@ void draw_scene(SDL_Surface* surface, int width, int height, struct mesh *sphere
 			.z = sphereMesh.vert[b * 3 + 2]
 		};
 
-		int x0 = (v0.x + 1.) * width / 2.;
-		int y0 = (v0.y + 1.) * height / 2.;
-		int x1 = (v1.x + 1.) * width / 2.;
-		int y1 = (v1.y + 1.) * height / 2.;
+		int x0 = (v0.x + 1.) * 0.5 * width / 2. + (0.25 * width);
+		int y0 = (v0.y + 1.) * 0.5 * height / 2. + (0.25 * height);
+		int x1 = (v1.x + 1.) * 0.5 * width / 2. + (0.25 * width);
+		int y1 = (v1.y + 1.) * 0.5 * height / 2. + (0.25 * height);
 
-		line(x0, y0, x1, y1, surface, 0xff00ff00);
+		line(x0, y0, x1, y1, pixels, 0xff00ff00);
 	}
 
-	SDL_UnlockSurface(surface);
 }
 
 int main(int argc, char* argv[]) {
@@ -189,8 +206,12 @@ int main(int argc, char* argv[]) {
 
 	// generate the mesh before the loop
 	struct mesh sphereMesh;
-	int subdivisions = 20;
+	int subdivisions = 10;
 	generateSphere(1.0, subdivisions, &sphereMesh);
+
+	struct mesh sphereMeshShift;
+	generateSphere(0.2, 5, &sphereMeshShift);
+	translateMesh(1.5, &sphereMeshShift);
 
 	while (!finishTheFunk) {
 		SDL_Event event;
@@ -205,7 +226,21 @@ int main(int argc, char* argv[]) {
 
 		rotateMesh(0.1, &sphereMesh);
 		rotateMeshY(0.05, &sphereMesh);
-		draw_scene(surface, 512, 512, &sphereMesh);
+
+		rotateMesh(0.05, &sphereMeshShift);
+		rotateMeshY(0.07, &sphereMeshShift);
+
+		SDL_LockSurface(surface);
+
+		char* pixels = surface->pixels;
+
+		// draw_scene(surface, 512, 512, &sphereMesh);
+		draw_scene(pixels, 512, 512, &sphereMesh);
+
+		// draw_scene(surface, 512, 512, &sphereMeshShift);
+		draw_scene(pixels, 512, 512, &sphereMeshShift);
+
+		SDL_UnlockSurface(surface);
 
 		// copy to window
 		SDL_BlitSurface(surface, NULL, screen, NULL);
@@ -217,6 +252,9 @@ int main(int argc, char* argv[]) {
 	// Free the mesh memory
 	free(sphereMesh.vert);
 	free(sphereMesh.face);
+
+	free(sphereMeshShift.vert);
+	free(sphereMeshShift.face);
 
 	SDL_Quit();
 
