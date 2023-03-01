@@ -25,41 +25,66 @@ void swap(int *xp, int *yp) {
 	*yp = temp;
 }
 
-void rotateMesh(float zRotateAngle, struct mesh *outMesh) {
-	int i;
-	float cosAngle = cos(zRotateAngle);
-	float sinAngle = sin(zRotateAngle);
-	for (i = 0; i < outMesh->vertCount; i++) {
-		float x = outMesh->vert[i * 3];
-		float y = outMesh->vert[i * 3 + 1];
-		outMesh->vert[i * 3] = x * cosAngle - y * sinAngle;
-		outMesh->vert[i * 3 + 1] = x * sinAngle + y * cosAngle;
-	}
+void multiplyMatrixVector(float *m, float *v, float *out) {
+	out[0] = m[0]*v[0] + m[4]*v[1] + m[8]*v[2] + m[12]*v[3];
+	out[1] = m[1]*v[0] + m[5]*v[1] + m[9]*v[2] + m[13]*v[3];
+	out[2] = m[2]*v[0] + m[6]*v[1] + m[10]*v[2] + m[14]*v[3];
+	out[3] = m[3]*v[0] + m[7]*v[1] + m[11]*v[2] + m[15]*v[3];
 }
 
-void rotateMeshY(float zRotateAngle, struct mesh *outMesh) {
-	int i;
-	float cosAngle = cos(zRotateAngle);
-	float sinAngle = sin(zRotateAngle);
-	for (i = 0; i < outMesh->vertCount; i++) {
-		float x = outMesh->vert[i * 3];
-		float y = outMesh->vert[i * 3 + 1];
-		float z = outMesh->vert[i * 3 + 2];
-		outMesh->vert[i * 3] = x * cosAngle + z * sinAngle;
-		outMesh->vert[i * 3 + 1] = y;
-		outMesh->vert[i * 3 + 2] = -x * sinAngle + z * cosAngle;
-	}
-}
+void trs(struct mesh *outMesh,
+         float tx, float ty, float tz,
+         float rx, float ry, float rz,
+         float sx, float sy, float sz) {
+	// Translation matrix
+	float t[16] = {
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		tx, ty, tz, 1.0f
+	};
 
-void translateMesh(float xShift, struct mesh *outMesh) {
-	int i;
-	for (i = 0; i < outMesh->vertCount; i++) {
-		float x = outMesh->vert[i * 3];
-		float y = outMesh->vert[i * 3 + 1];
-		float z = outMesh->vert[i * 3 + 2];
-		outMesh->vert[i * 3] = x + xShift;
-		outMesh->vert[i * 3 + 1] = y;
-		outMesh->vert[i * 3 + 2] = z;
+	// Rotation matrix
+	float c, s, len;
+	float axis[3] = {rx, ry, rz};
+	len = sqrtf(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
+	if (len != 0.0f) {
+		c = cosf(M_PI / 180.0f * len);
+		s = sinf(M_PI / 180.0f * len);
+		axis[0] /= len;
+		axis[1] /= len;
+		axis[2] /= len;
+	} else {
+		c = 1.0f;
+		s = 0.0f;
+	}
+	float t2[16] = {
+		axis[0]*axis[0]*(1.0f-c)+c, axis[0]*axis[1]*(1.0f-c)-axis[2]*s, axis[0]*axis[2]*(1.0f-c)+axis[1]*s, 0.0f,
+		axis[0]*axis[1]*(1.0f-c)+axis[2]*s, axis[1]*axis[1]*(1.0f-c)+c, axis[1]*axis[2]*(1.0f-c)-axis[0]*s, 0.0f,
+		axis[0]*axis[2]*(1.0f-c)-axis[1]*s, axis[1]*axis[2]*(1.0f-c)+axis[0]*s, axis[2]*axis[2]*(1.0f-c)+c, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+
+	// Scale matrix
+	float s3[16] = {
+		sx, 0.0f, 0.0f, 0.0f,
+		0.0f, sy, 0.0f, 0.0f,
+		0.0f, 0.0f, sz, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+
+	// Transform each vertex
+	for (int i = 0; i < outMesh->vertCount; i++) {
+		// Apply translation, rotation, and scaling to vertex
+		float v[4] = {outMesh->vert[i*3], outMesh->vert[i*3 + 1], outMesh->vert[i*3 + 2], 1.0f};
+		float v2[4];
+		multiplyMatrixVector(t, v, v2);
+		multiplyMatrixVector(t2, v2, v);
+		multiplyMatrixVector(s3, v,v2);
+		// Store transformed vertex back into mesh
+		outMesh->vert[i*3] = v2[0];
+		outMesh->vert[i*3 + 1] = v2[1];
+		outMesh->vert[i*3 + 2] = v2[2];
 	}
 }
 
@@ -185,10 +210,9 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 			int x1 = (v1.x + 1.) * 0.5 * width / 2. + (0.25 * width);
 			int y1 = (v1.y + 1.) * 0.5 * height / 2. + (0.25 * height);
 
-			line(x0, y0, x1, y1, pixels, 0xff00ff00);
+			line(x0, y0, x1, y1, pixels, 0x2299ff00);
 		}
 	}
-
 }
 
 int main(int argc, char* argv[]) {
@@ -218,10 +242,16 @@ int main(int argc, char* argv[]) {
 
 	struct mesh sphereMeshShift;
 	generateSphere(0.2, 5, &sphereMeshShift);
-	translateMesh(1.5, &sphereMeshShift);
+	trs(&sphereMeshShift,
+	    1.5, 0, 0,
+	    0, 0, 0,
+	    1, 1, 1);
 
-	struct mesh allMeshes[500]; // limit to 500 for now
+	struct mesh *allMeshes[500]; // limit to 500 for now
 	int meshCount = 0;
+
+	allMeshes[meshCount++] = &sphereMesh;
+	allMeshes[meshCount++] = &sphereMeshShift;
 
 	while (!finishTheFunk) {
 		startTicks = SDL_GetTicks();
@@ -236,11 +266,15 @@ int main(int argc, char* argv[]) {
 
 		SDL_FillRect(surface, NULL, 0);
 
-		rotateMesh(0.1, &sphereMesh);
-		rotateMeshY(0.05, &sphereMesh);
+		trs(allMeshes[0],
+		    0, 0, 0,
+		    0, 0.1 * 50, 0.05 * 50,
+		    1, 1, 1);
 
-		rotateMesh(0.05, &sphereMeshShift);
-		rotateMeshY(0.07, &sphereMeshShift);
+		trs(&sphereMeshShift,
+		    0, 0, 0,
+		    0, 0.5 * 2, 0.7 * 2,
+		    1, 1, 1);
 
 		SDL_LockSurface(surface);
 
@@ -268,11 +302,14 @@ int main(int argc, char* argv[]) {
 	}
 
 	// Free the mesh memory
-	free(sphereMesh.vert);
-	free(sphereMesh.face);
+	for (int i = 0; i < meshCount; i++) {
+		free(allMeshes[i]->vert);
+		free(allMeshes[i]->face);
+		printf("clear success\n");
+	}
 
-	free(sphereMeshShift.vert);
-	free(sphereMeshShift.face);
+	//free(sphereMeshShift.vert);
+	//free(sphereMeshShift.face);
 
 	SDL_Quit();
 
