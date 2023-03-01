@@ -96,6 +96,7 @@ void generateSphere(float radius, int subdivisions, struct mesh *outMesh) {
 			outMesh->face[faceCount++] = a;
 			outMesh->face[faceCount++] = b;
 			outMesh->face[faceCount++] = c;
+
 			outMesh->face[faceCount++] = b;
 			outMesh->face[faceCount++] = d;
 			outMesh->face[faceCount++] = c;
@@ -160,28 +161,32 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 
 	// draw the mesh
 	for (int i = 0; i < sphereMesh.faceCount; i++) {
-		int a = sphereMesh.face[i * 3];
-		int b = sphereMesh.face[i * 3 + 1];
-		// int c = sphereMesh.face[i * 3 + 2];
 
-		struct Vec3f v0 = {
-			.x = sphereMesh.vert[a * 3],
-			.y = sphereMesh.vert[a * 3 + 1],
-			.z = sphereMesh.vert[a * 3 + 2]
-		};
+		int faceIndex = i * 3;
 
-		struct Vec3f v1 = {
-			.x = sphereMesh.vert[b * 3],
-			.y = sphereMesh.vert[b * 3 + 1],
-			.z = sphereMesh.vert[b * 3 + 2]
-		};
+		for (int j = 0; j < 3; j++) {
+			int a = sphereMesh.face[faceIndex + j];
+			int b = sphereMesh.face[faceIndex + (j + 1) % 3];
 
-		int x0 = (v0.x + 1.) * 0.5 * width / 2. + (0.25 * width);
-		int y0 = (v0.y + 1.) * 0.5 * height / 2. + (0.25 * height);
-		int x1 = (v1.x + 1.) * 0.5 * width / 2. + (0.25 * width);
-		int y1 = (v1.y + 1.) * 0.5 * height / 2. + (0.25 * height);
+			struct Vec3f v0 = {
+				.x = sphereMesh.vert[a * 3],
+				.y = sphereMesh.vert[a * 3 + 1],
+				.z = sphereMesh.vert[a * 3 + 2]
+			};
 
-		line(x0, y0, x1, y1, pixels, 0xff00ff00);
+			struct Vec3f v1 = {
+				.x = sphereMesh.vert[b * 3],
+				.y = sphereMesh.vert[b * 3 + 1],
+				.z = sphereMesh.vert[b * 3 + 2]
+			};
+
+			int x0 = (v0.x + 1.) * 0.5 * width / 2. + (0.25 * width);
+			int y0 = (v0.y + 1.) * 0.5 * height / 2. + (0.25 * height);
+			int x1 = (v1.x + 1.) * 0.5 * width / 2. + (0.25 * width);
+			int y1 = (v1.y + 1.) * 0.5 * height / 2. + (0.25 * height);
+
+			line(x0, y0, x1, y1, pixels, 0xff00ff00);
+		}
 	}
 
 }
@@ -189,6 +194,8 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 int main(int argc, char* argv[]) {
     char *funkyString = "Starting the funk!";
     printf("%s\n", funkyString);
+
+	Uint32 startTicks, frameTicks;
 
 	SDL_Window* window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 512, 512, 0);
 	// SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
@@ -213,7 +220,12 @@ int main(int argc, char* argv[]) {
 	generateSphere(0.2, 5, &sphereMeshShift);
 	translateMesh(1.5, &sphereMeshShift);
 
+	struct mesh allMeshes[500]; // limit to 500 for now
+	int meshCount = 0;
+
 	while (!finishTheFunk) {
+		startTicks = SDL_GetTicks();
+
 		SDL_Event event;
 
 		while (SDL_PollEvent(&event)) {
@@ -246,7 +258,13 @@ int main(int argc, char* argv[]) {
 		SDL_BlitSurface(surface, NULL, screen, NULL);
 		SDL_UpdateWindowSurface(window);
 
-		SDL_Delay(1000 / 12);
+		//SDL_Delay(1000 / 12);
+		float targetFrameTime = 1000 / 12;
+
+		frameTicks = SDL_GetTicks() - startTicks;
+		if (frameTicks < targetFrameTime) {
+			SDL_Delay(targetFrameTime - frameTicks);
+		}
 	}
 
 	// Free the mesh memory
