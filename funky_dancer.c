@@ -215,6 +215,24 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 	}
 }
 
+void cloneMesh(struct mesh *originalMesh, struct mesh *newMesh) {
+	// Allocate memory for the vertices and copy the values
+	//if (newMesh->vert != NULL) {
+		//free(newMesh->vert);
+	//}
+	newMesh->vert = malloc(sizeof(float) * originalMesh->vertCount * 3);
+	memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
+	newMesh->vertCount = originalMesh->vertCount;
+
+	// Allocate memory for the faces and copy the values
+	//if (newMesh->face != NULL) {
+		//free(newMesh->face);
+	//}
+	newMesh->face = malloc(sizeof(int) * originalMesh->faceCount * 3);
+	memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
+	newMesh->faceCount = originalMesh->faceCount;
+}
+
 int main(int argc, char* argv[]) {
     char *funkyString = "Starting the funk!";
     printf("%s\n", funkyString);
@@ -249,9 +267,29 @@ int main(int argc, char* argv[]) {
 
 	struct mesh *allMeshes[500]; // limit to 500 for now
 	int meshCount = 0;
+	struct mesh *sceneMeshes[500]; // limit to 500 for now
+	int sceneMeshCount = 0;
 
 	allMeshes[meshCount++] = &sphereMesh;
 	allMeshes[meshCount++] = &sphereMeshShift;
+	
+	// first clone test, need to refine
+	for (int i = 0; i < meshCount; i++) {
+		struct mesh *originalMesh = allMeshes[i];
+
+		// Create a new mesh for the scene
+		struct mesh *newMesh = malloc(sizeof(struct mesh));
+
+		// Clone the original mesh into the new mesh
+		cloneMesh(originalMesh, newMesh);
+
+		// Add the new mesh to the scene meshes
+		sceneMeshes[i] = newMesh;
+
+		sceneMeshCount++;
+	}
+
+	int delta = 0;
 
 	while (!finishTheFunk) {
 		startTicks = SDL_GetTicks();
@@ -266,25 +304,41 @@ int main(int argc, char* argv[]) {
 
 		SDL_FillRect(surface, NULL, 0);
 
-		trs(allMeshes[0],
+		// reuse memory
+		for (int i = 0; i < meshCount; i++) {
+
+			// need to free them, see if can do a check in the function
+			free(sceneMeshes[i]->vert);
+			free(sceneMeshes[i]->face);
+
+			struct mesh *originalMesh = allMeshes[i];
+
+			struct mesh *newMesh = sceneMeshes[i];
+
+			// Clone the original mesh into the new mesh
+			cloneMesh(originalMesh, newMesh);
+
+			// Add the new mesh to the scene meshes
+			sceneMeshes[i] = newMesh;
+		}
+
+		trs(sceneMeshes[0],
 		    0, 0, 0,
-		    0, 0.1 * 50, 0.05 * 50,
+		    0, 2 * delta, 1 * delta,
 		    1, 1, 1);
 
-		trs(&sphereMeshShift,
+		trs(sceneMeshes[1],
 		    0, 0, 0,
-		    0, 0.5 * 2, 0.7 * 2,
+		    2 * delta, 5 * delta, 1.2 * delta,
 		    1, 1, 1);
 
 		SDL_LockSurface(surface);
 
 		char* pixels = surface->pixels;
 
-		// draw_scene(surface, 512, 512, &sphereMesh);
-		draw_scene(pixels, 512, 512, &sphereMesh);
-
-		// draw_scene(surface, 512, 512, &sphereMeshShift);
-		draw_scene(pixels, 512, 512, &sphereMeshShift);
+		for (int i = 0; i < sceneMeshCount; i++) {
+			draw_scene(pixels, 512, 512, sceneMeshes[i]);
+		}
 
 		SDL_UnlockSurface(surface);
 
@@ -299,12 +353,20 @@ int main(int argc, char* argv[]) {
 		if (frameTicks < targetFrameTime) {
 			SDL_Delay(targetFrameTime - frameTicks);
 		}
+
+		delta++;
 	}
 
 	// Free the mesh memory
 	for (int i = 0; i < meshCount; i++) {
 		free(allMeshes[i]->vert);
 		free(allMeshes[i]->face);
+		printf("clear success\n");
+	}
+
+	for (int i = 0; i < meshCount; i++) {
+		free(sceneMeshes[i]->vert);
+		free(sceneMeshes[i]->face);
 		printf("clear success\n");
 	}
 
