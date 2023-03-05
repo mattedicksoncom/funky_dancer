@@ -37,8 +37,9 @@ struct Transform {
 };
 
 struct SceneObject {
-	struct Mesh *mesh;
+	struct mesh *mesh;
 	struct Transform transform;
+	struct Vector3 attachPosition;
 	struct SceneObject *children[10]; // max 10 for now
 	int childCount;
 };

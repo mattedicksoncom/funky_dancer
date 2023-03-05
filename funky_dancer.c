@@ -234,6 +234,24 @@ int main(int argc, char* argv[]) {
 	struct mesh *sceneObjects[500]; // limit to 500 for now
 	int sceneMeshCount = 0;
 
+	struct SceneObject *sceneObjectsForReal[500]; // limit to 500 for now
+	int sceneObjectForRealCount = 0;
+
+	// test rendering a scene object
+	struct mesh sceneCubeTest;
+	generateCube(1.2, 1.2, 1.2, &sceneCubeTest);
+
+	struct SceneObject testObject;
+	testObject.mesh = &sceneCubeTest;
+
+	testObject.transform.position = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	testObject.transform.scale = (struct Vector3){ .x = 1.0f, .y = 1.0f, .z = 1.0f };
+	testObject.transform.rotation = (struct Quaternion){ .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	testObject.attachPosition = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	testObject.childCount = 0;
+
+	sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
+
 	allMeshes[meshCount++] = &sphereMesh;
 	allMeshes[meshCount++] = &sphereMeshShift;
 	allMeshes[meshCount++] = &cubeMesh;
