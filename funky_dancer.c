@@ -2,8 +2,10 @@
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include <math.h>
+
 #include "math_stuff.c"
 #include "common_structs.c"
+#include "mesh_generators.c"
 
 // gcc -Wall -Wextra -std=c99 -pedantic funky_dancer.c -ISDL2\include -L.\SDL2\lib -lmingw32 -lSDL2main -lSDL2 -o funky_dancer
 
@@ -61,51 +63,6 @@ void trs(struct mesh *outMesh,
 		outMesh->vert[i*3 + 1] = v2[1];
 		outMesh->vert[i*3 + 2] = v2[2];
 	}
-}
-
-void generateSphere(float radius, int subdivisions, struct mesh *outMesh) {
-	int i, j;
-	int vertCount = 0;
-	int faceCount = 0;
-
-	// Allocate memory for verts and faces
-	outMesh->vert = (float*)malloc(sizeof(float) * 3 * (subdivisions + 1) * (subdivisions + 1));
-	outMesh->face = (int*)malloc(sizeof(int) * 6 * subdivisions * subdivisions);
-
-	// Generate verts
-	for (i = 0; i <= subdivisions; i++) {
-		float theta = (float)i / (float)subdivisions * M_PI;
-		for (j = 0; j <= subdivisions; j++) {
-			float phi = (float)j / (float)subdivisions * 2.0f * M_PI;
-			float x = sinf(theta) * cosf(phi);
-			float y = sinf(theta) * sinf(phi);
-			float z = cosf(theta);
-			outMesh->vert[vertCount++] = x * radius;
-			outMesh->vert[vertCount++] = y * radius;
-			outMesh->vert[vertCount++] = z * radius;
-		}
-	}
-
-	// Generate faces
-	for (i = 0; i < subdivisions; i++) {
-		for (j = 0; j < subdivisions; j++) {
-			int a = i * (subdivisions + 1) + j;
-			int b = a + 1;
-			int c = (i + 1) * (subdivisions + 1) + j;
-			int d = c + 1;
-			outMesh->face[faceCount++] = a;
-			outMesh->face[faceCount++] = b;
-			outMesh->face[faceCount++] = c;
-
-			outMesh->face[faceCount++] = b;
-			outMesh->face[faceCount++] = d;
-			outMesh->face[faceCount++] = c;
-		}
-	}
-
-	// Set the number of vertices and faces
-	outMesh->vertCount = vertCount / 3;
-	outMesh->faceCount = faceCount / 3;
 }
 
 // void line(int x0, int y0, int x1, int y1, SDL_Surface* surface, unsigned int color) { 
@@ -264,6 +221,14 @@ int main(int argc, char* argv[]) {
 	    0, 0, 0,
 	    1, 1, 1);
 
+	struct mesh cubeMesh;
+	generateCube(0.8, 0.5, 0.7, &cubeMesh);
+	trs(&cubeMesh,
+	    2.0, 0, 0,
+	    0, 0, 0,
+	    1, 1, 1);
+
+
 	struct mesh *allMeshes[500]; // limit to 500 for now
 	int meshCount = 0;
 	struct mesh *sceneObjects[500]; // limit to 500 for now
@@ -271,6 +236,7 @@ int main(int argc, char* argv[]) {
 
 	allMeshes[meshCount++] = &sphereMesh;
 	allMeshes[meshCount++] = &sphereMeshShift;
+	allMeshes[meshCount++] = &cubeMesh;
 	
 	// first clone test, need to refine
 	for (int i = 0; i < meshCount; i++) {
@@ -329,6 +295,23 @@ int main(int argc, char* argv[]) {
 		trs(sceneObjects[1],
 		    0, 0, 0,
 		    2 * delta, 5 * delta, 1.2 * delta,
+		    1, 1, 1);
+
+
+
+		trs(sceneObjects[2],
+		    -2.0, 0, 0,
+		    0, 0, 0,
+		    1, 1, 1);
+
+		trs(sceneObjects[2],
+		    0, 0, 0,
+		    2 * delta, 5 * delta, 1.2 * delta,
+		    1, 1, 1);
+
+		trs(sceneObjects[2],
+		    2.0, 0, 0,
+		    0, 0, 0,
 		    1, 1, 1);
 
 		SDL_LockSurface(surface);
