@@ -183,6 +183,14 @@ void cloneMeshToScene(struct mesh *originalMesh, struct mesh *newMesh) {
 	newMesh->faceCount = originalMesh->faceCount;
 }
 
+void cloneMeshToScene_NOMALLOC(struct mesh *originalMesh, struct mesh *newMesh) {
+	memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
+	newMesh->vertCount = originalMesh->vertCount;
+
+	memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
+	newMesh->faceCount = originalMesh->faceCount;
+}
+
 int main(int argc, char* argv[]) {
 	char *funkyString = "Starting the funk!";
 	printf("%s\n", funkyString);
@@ -239,7 +247,7 @@ int main(int argc, char* argv[]) {
 
 	// test rendering a scene object
 	struct mesh sceneCubeTest;
-	generateCube(1.2, 1.2, 1.2, &sceneCubeTest);
+	generateCube(1.0, 1.0, 1.0, &sceneCubeTest);
 
 	struct SceneObject testObject;
 	testObject.mesh = &sceneCubeTest;
@@ -252,13 +260,39 @@ int main(int argc, char* argv[]) {
 
 	sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
 
+	// test adding a child
+	struct mesh sceneCubeChild;
+	generateCube(1.2, 1.2, 1.2, &sceneCubeChild);
+
+	trs(&sceneCubeChild,
+	    0.5, 0.5, 0.5,
+	    0, 5, 5,
+	    1, 1, 1);
+	
+
+	struct SceneObject testObjectChild;
+	testObjectChild.mesh = &sceneCubeChild;
+
+	testObjectChild.transform.position = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	testObjectChild.transform.scale = (struct Vector3){ .x = 1.0f, .y = 1.0f, .z = 1.0f };
+	testObjectChild.transform.rotation = (struct Quaternion){ .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	testObjectChild.attachPosition = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	testObjectChild.childCount = 0;
+
+	// add the child to the test mesh
+	testObject.children[0] = &testObjectChild;
+	testObject.childCount = 1;
+
+	//sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
+
 	allMeshes[meshCount++] = &sphereMesh;
 	allMeshes[meshCount++] = &sphereMeshShift;
 	allMeshes[meshCount++] = &cubeMesh;
-	
-	// first clone test, need to refine
-	for (int i = 0; i < meshCount; i++) {
-		struct mesh *originalMesh = allMeshes[i];
+
+	int sceneObjectsCounter2 = 0;
+	// clone the sceneObject stuff
+	for (int i = 0; i < sceneObjectForRealCount; i++) {
+		struct mesh *originalMesh = sceneObjectsForReal[i]->mesh;
 
 		// Create a new mesh for the scene
 		struct mesh *newMesh = malloc(sizeof(struct mesh));
@@ -267,9 +301,24 @@ int main(int argc, char* argv[]) {
 		cloneMeshToScene(originalMesh, newMesh);
 
 		// Add the new mesh to the scene meshes
-		sceneObjects[i] = newMesh;
+		sceneObjects[sceneObjectsCounter2] = newMesh;
 
-		sceneMeshCount++;
+		sceneObjectsCounter2++;
+
+		printf("%i childcount", sceneObjectsForReal[i]->childCount);
+
+		for (int j = 0; j < sceneObjectsForReal[i]->childCount; j++) {
+			struct mesh *originalMesh2 = sceneObjectsForReal[i]->children[j]->mesh;
+			struct mesh *newMesh2 = malloc(sizeof(struct mesh));
+
+			// Clone the original mesh into the new mesh
+			cloneMeshToScene(originalMesh2, newMesh2);
+
+			// Add the new mesh to the scene meshes
+			sceneObjects[sceneObjectsCounter2] = newMesh2;
+
+			sceneObjectsCounter2++;
+		}
 	}
 
 	int delta = 0;
@@ -287,56 +336,57 @@ int main(int argc, char* argv[]) {
 
 		SDL_FillRect(surface, NULL, 0);
 
-		// reuse memory
-		for (int i = 0; i < meshCount; i++) {
+		int sceneObjectsCounter = 0;
+
+		// attempt to render the scene meshes ----------------------------------
+		for (int i = 0; i < sceneObjectForRealCount; i++) {
 
 			// need to free them, see if can do a check in the function
-			free(sceneObjects[i]->vert);
-			free(sceneObjects[i]->face);
+			free(sceneObjects[sceneObjectsCounter]->vert);
+			free(sceneObjects[sceneObjectsCounter]->face);
 
-			struct mesh *originalMesh = allMeshes[i];
+			struct mesh *originalMesh = sceneObjectsForReal[i]->mesh;
 
-			struct mesh *newMesh = sceneObjects[i];
+			struct mesh *newMesh = sceneObjects[sceneObjectsCounter];
 
 			// Clone the original mesh into the new mesh
-			cloneMeshToScene(originalMesh, newMesh);
+			cloneMeshToScene_NOMALLOC(originalMesh, newMesh);
 
 			// Add the new mesh to the scene meshes
-			sceneObjects[i] = newMesh;
+			sceneObjects[sceneObjectsCounter] = newMesh;
+
+			sceneObjectsCounter++;
+
+			// only do one child deep as a test
+			for (int j = 0; j < sceneObjectsForReal[i]->childCount; j++) {
+
+				// need to free them, see if can do a check in the function
+				free(sceneObjects[sceneObjectsCounter]->vert);
+				free(sceneObjects[sceneObjectsCounter]->face);
+
+				struct mesh *originalMesh2 = sceneObjectsForReal[i]->children[j]->mesh;
+
+				struct mesh *newMesh2 = sceneObjects[sceneObjectsCounter];
+
+				// Clone the original mesh into the new mesh
+				cloneMeshToScene_NOMALLOC(originalMesh2, newMesh2);
+
+				trs(newMesh2,
+				    0.0, 0.0, 0.0,
+				    0, 0 + delta, 0,
+				    1, 1, 1);
+				//// Add the new mesh to the scene meshes
+				sceneObjects[sceneObjectsCounter] = newMesh2;
+
+				sceneObjectsCounter++;
+			}
 		}
-
-		trs(sceneObjects[0],
-		    0, 0, 0,
-		    0, 2 * delta, 1 * delta,
-		    1, 1, 1);
-
-		trs(sceneObjects[1],
-		    0, 0, 0,
-		    2 * delta, 5 * delta, 1.2 * delta,
-		    1, 1, 1);
-
-
-
-		trs(sceneObjects[2],
-		    -2.0, 0, 0,
-		    0, 0, 0,
-		    1, 1, 1);
-
-		trs(sceneObjects[2],
-		    0, 0, 0,
-		    2 * delta, 5 * delta, 1.2 * delta,
-		    1, 1, 1);
-
-		trs(sceneObjects[2],
-		    2.0, 0, 0,
-		    0, 0, 0,
-		    1, 1, 1);
 
 		SDL_LockSurface(surface);
 
 		char* pixels = surface->pixels;
 
-		for (int i = 0; i < sceneMeshCount; i++) {
+		for (int i = 0; i < sceneObjectsCounter; i++) {
 			draw_scene(pixels, 512, 512, sceneObjects[i]);
 		}
 
