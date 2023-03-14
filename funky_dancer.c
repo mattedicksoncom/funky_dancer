@@ -190,6 +190,72 @@ void cloneMeshToScene_NOMALLOC(struct mesh *originalMesh, struct mesh *newMesh) 
 	memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
 	newMesh->faceCount = originalMesh->faceCount;
 }
+void freeMem(struct mesh *sceneObjects[], int sceneObjectsCounter) {
+	// free the memory for these two things
+	free(sceneObjects[sceneObjectsCounter]->vert);
+	free(sceneObjects[sceneObjectsCounter]->face);
+}
+
+void iterateCounter(int *sceneObjectCounter_ptr) {
+	(*sceneObjectCounter_ptr)++;
+}
+
+void testCloneMesh(struct mesh *sceneObjects[], int sceneObjectsCounter, struct mesh *originalMesh2) {
+	struct mesh *newMesh2 = sceneObjects[sceneObjectsCounter];
+
+	cloneMeshToScene_NOMALLOC(originalMesh2, newMesh2);
+
+	sceneObjects[sceneObjectsCounter] = newMesh2;
+}
+
+void recurseChildren(int delta,
+                     struct mesh *sceneObjects[],
+                     int *sceneObjectsCounter_ptr,
+                     struct SceneObject *sceneObjectsForReal,
+                     struct Vector3 cumulativeRotation) {
+	int sceneObjectsCounter = *sceneObjectsCounter_ptr;
+
+	freeMem(sceneObjects, sceneObjectsCounter);
+
+	testCloneMesh(sceneObjects, sceneObjectsCounter, sceneObjectsForReal->mesh);
+
+	struct Transform currentTransform = sceneObjectsForReal->transform;
+
+	// rotate first
+	trs(sceneObjects[sceneObjectsCounter],
+	    0, 0, 0,
+	    currentTransform.rotation.x, currentTransform.rotation.y, currentTransform.rotation.z + delta,
+	    1, 1, 1);
+
+	// then move into position
+	trs(sceneObjects[sceneObjectsCounter],
+	    currentTransform.position.x, currentTransform.position.y, currentTransform.position.z,
+	    0, 0, 0,
+	    currentTransform.scale.x, currentTransform.scale.y, currentTransform.scale.z);
+
+	cumulativeRotation.x += currentTransform.rotation.x;
+	cumulativeRotation.y += currentTransform.rotation.y;
+	cumulativeRotation.z += currentTransform.rotation.z;
+
+	// rotate first
+	trs(sceneObjects[sceneObjectsCounter],
+	    0, 0, 0,
+	    cumulativeRotation.x, cumulativeRotation.y, cumulativeRotation.z,
+	    1, 1, 1);
+
+	cumulativeRotation.z += currentTransform.rotation.z + delta;
+
+	//trs(sceneObjects[sceneObjectsCounter],
+	//    0.0, 0.0, 0.0,
+	//    0, 0, 0 + delta,
+	//	1, 1, 1);
+
+	iterateCounter(sceneObjectsCounter_ptr);
+
+	for (int j = 0; j < sceneObjectsForReal->childCount; j++) {
+		recurseChildren(delta, sceneObjects, sceneObjectsCounter_ptr, sceneObjectsForReal->children[j], cumulativeRotation);
+	}
+}
 
 int main(int argc, char* argv[]) {
 	char *funkyString = "Starting the funk!";
@@ -252,6 +318,11 @@ int main(int argc, char* argv[]) {
 	struct SceneObject testObject;
 	testObject.mesh = &sceneCubeTest;
 
+	trs(&sceneCubeTest,
+	    0.0, 0.0, 0.0,
+	    0, 0, 0,
+	    0.3, 1.0, 0.3);
+
 	testObject.transform.position = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
 	testObject.transform.scale = (struct Vector3){ .x = 1.0f, .y = 1.0f, .z = 1.0f };
 	testObject.transform.rotation = (struct Quaternion){ .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f };
@@ -262,18 +333,18 @@ int main(int argc, char* argv[]) {
 
 	// test adding a child
 	struct mesh sceneCubeChild;
-	generateCube(1.2, 1.2, 1.2, &sceneCubeChild);
+	generateCube(1.0, 1.0, 1.0, &sceneCubeChild);
 
 	trs(&sceneCubeChild,
-	    0.5, 0.5, 0.5,
-	    0, 5, 5,
-	    1, 1, 1);
+	    0.5, 0.0, 0.0,
+	    0, 0, 0,
+	    1, 0.3, 0.3);
 	
 
 	struct SceneObject testObjectChild;
 	testObjectChild.mesh = &sceneCubeChild;
 
-	testObjectChild.transform.position = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	testObjectChild.transform.position = (struct Vector3){ .x = 0.0f, .y = 0.5f, .z = 0.0f };
 	testObjectChild.transform.scale = (struct Vector3){ .x = 1.0f, .y = 1.0f, .z = 1.0f };
 	testObjectChild.transform.rotation = (struct Quaternion){ .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f };
 	testObjectChild.attachPosition = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
@@ -340,46 +411,8 @@ int main(int argc, char* argv[]) {
 
 		// attempt to render the scene meshes ----------------------------------
 		for (int i = 0; i < sceneObjectForRealCount; i++) {
-
-			// need to free them, see if can do a check in the function
-			free(sceneObjects[sceneObjectsCounter]->vert);
-			free(sceneObjects[sceneObjectsCounter]->face);
-
-			struct mesh *originalMesh = sceneObjectsForReal[i]->mesh;
-
-			struct mesh *newMesh = sceneObjects[sceneObjectsCounter];
-
-			// Clone the original mesh into the new mesh
-			cloneMeshToScene_NOMALLOC(originalMesh, newMesh);
-
-			// Add the new mesh to the scene meshes
-			sceneObjects[sceneObjectsCounter] = newMesh;
-
-			sceneObjectsCounter++;
-
-			// only do one child deep as a test
-			for (int j = 0; j < sceneObjectsForReal[i]->childCount; j++) {
-
-				// need to free them, see if can do a check in the function
-				free(sceneObjects[sceneObjectsCounter]->vert);
-				free(sceneObjects[sceneObjectsCounter]->face);
-
-				struct mesh *originalMesh2 = sceneObjectsForReal[i]->children[j]->mesh;
-
-				struct mesh *newMesh2 = sceneObjects[sceneObjectsCounter];
-
-				// Clone the original mesh into the new mesh
-				cloneMeshToScene_NOMALLOC(originalMesh2, newMesh2);
-
-				trs(newMesh2,
-				    0.0, 0.0, 0.0,
-				    0, 0 + delta, 0,
-				    1, 1, 1);
-				//// Add the new mesh to the scene meshes
-				sceneObjects[sceneObjectsCounter] = newMesh2;
-
-				sceneObjectsCounter++;
-			}
+			struct Vector3 cumulativeRotation = { .x = 0, .y = 0, .z = 0 };
+			recurseChildren(delta, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation);
 		}
 
 		SDL_LockSurface(surface);
