@@ -224,7 +224,7 @@ void recurseChildren(int delta,
 	// rotate first
 	trs(sceneObjects[sceneObjectsCounter],
 	    0, 0, 0,
-	    currentTransform.rotation.x, currentTransform.rotation.y, currentTransform.rotation.z + delta,
+	    currentTransform.rotation.x + delta, currentTransform.rotation.y, currentTransform.rotation.z + delta,
 	    1, 1, 1);
 
 	// then move into position
@@ -233,27 +233,24 @@ void recurseChildren(int delta,
 	    0, 0, 0,
 	    currentTransform.scale.x, currentTransform.scale.y, currentTransform.scale.z);
 
-	cumulativeRotation.x += currentTransform.rotation.x;
-	cumulativeRotation.y += currentTransform.rotation.y;
-	cumulativeRotation.z += currentTransform.rotation.z;
-
-	// rotate first
+	// do the cumulative rotation
 	trs(sceneObjects[sceneObjectsCounter],
 	    0, 0, 0,
 	    cumulativeRotation.x, cumulativeRotation.y, cumulativeRotation.z,
 	    1, 1, 1);
 
-	cumulativeRotation.z += currentTransform.rotation.z + delta;
+	cumulativeRotation.x += currentTransform.rotation.x;
+	cumulativeRotation.y += currentTransform.rotation.y;
+	cumulativeRotation.z += currentTransform.rotation.z;
 
-	//trs(sceneObjects[sceneObjectsCounter],
-	//    0.0, 0.0, 0.0,
-	//    0, 0, 0 + delta,
-	//	1, 1, 1);
+	cumulativeRotation.x += currentTransform.rotation.x + delta;
+	cumulativeRotation.z += currentTransform.rotation.z + delta;
+	
 
 	iterateCounter(sceneObjectsCounter_ptr);
 
 	for (int j = 0; j < sceneObjectsForReal->childCount; j++) {
-		recurseChildren(delta, sceneObjects, sceneObjectsCounter_ptr, sceneObjectsForReal->children[j], cumulativeRotation);
+		recurseChildren(delta * 2, sceneObjects, sceneObjectsCounter_ptr, sceneObjectsForReal->children[j], cumulativeRotation);
 	}
 }
 
@@ -319,7 +316,7 @@ int main(int argc, char* argv[]) {
 	testObject.mesh = &sceneCubeTest;
 
 	trs(&sceneCubeTest,
-	    0.0, 0.0, 0.0,
+	    0.0, 0.5, 0.0,
 	    0, 0, 0,
 	    0.3, 1.0, 0.3);
 
@@ -344,7 +341,7 @@ int main(int argc, char* argv[]) {
 	struct SceneObject testObjectChild;
 	testObjectChild.mesh = &sceneCubeChild;
 
-	testObjectChild.transform.position = (struct Vector3){ .x = 0.0f, .y = 0.5f, .z = 0.0f };
+	testObjectChild.transform.position = (struct Vector3){ .x = 0.0f, .y = 1.0f, .z = 0.0f };
 	testObjectChild.transform.scale = (struct Vector3){ .x = 1.0f, .y = 1.0f, .z = 1.0f };
 	testObjectChild.transform.rotation = (struct Quaternion){ .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f };
 	testObjectChild.attachPosition = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
