@@ -72,7 +72,8 @@ void line(int x0, int y0, int x1, int y1, char* pixels, unsigned int color) {
 	// const int pitch = surface->pitch;
 	// char* pixels = surface->pixels;
 	// need a bounds check
-	int pitch = sizeof(char) * 2048;
+	//int pitch = sizeof(char) * 2048;
+	int pitch = sizeof(char) * 640 * 4; // there are so many questions here, I put the description above and yet I keep this odd bit of code. Why?
 	
 	bool steep = false;
 	if (abs(x0-x1) < abs(y0-y1)) {
@@ -92,13 +93,13 @@ void line(int x0, int y0, int x1, int y1, char* pixels, unsigned int color) {
 	for (int x = x0; x <= x1; x++) {
 		if (steep) {
 			//image.set(y, x, color); 
-			if (x >= 0 && x < 512 && y >= 0 && y < 512) {
+			if (x >= 0 && x < 640 && y >= 0 && y < 480) {
 				unsigned int* row = (unsigned int*)(pixels + pitch * y);
 				row[x] = color;
 			}
 		} else {
 			//image.set(x, y, color);
-			if (x >= 0 && x < 512 && y >= 0 && y < 512) {
+			if (x >= 0 && x < 480 && y >= 0 && y < 640) {
 				unsigned int* row = (unsigned int*)(pixels + pitch * x);
 				row[y] = color;
 			}
@@ -142,6 +143,11 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 			int y0 = (v0.y + 1.) * 0.5 * height / 2. + (0.25 * height);
 			int x1 = (v1.x + 1.) * 0.5 * width / 2. + (0.25 * width);
 			int y1 = (v1.y + 1.) * 0.5 * height / 2. + (0.25 * height);
+			// fix this!!!
+			int x0 = (v0.x + 1.) * 0.5 * height / 2. + (0.25 * height);
+			int y0 = (v0.y + 1.) * 0.5 * width / 2. + (0.25 * width);
+			int x1 = (v1.x + 1.) * 0.5 * height / 2. + (0.25 * height);
+			int y1 = (v1.y + 1.) * 0.5 * width / 2. + (0.25 * width);
 
 			line(x0, y0, x1, y1, pixels, 0x2299ff00);
 		}
@@ -286,9 +292,9 @@ int main(int argc, char* argv[]) {
 
 	Uint32 startTicks, frameTicks;
 
-	SDL_Window* window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 512, 512, 0);
+	SDL_Window* window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
 	// SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
-	SDL_SetWindowOpacity(window, 0.9);
+	SDL_SetWindowOpacity(window, 1.0);
 
 	SDL_CreateRenderer(window, -1, 0);
 
@@ -298,7 +304,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	SDL_Surface* screen = SDL_GetWindowSurface(window);
-	SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, 512, 512, 32, SDL_PIXELFORMAT_RGBX8888);
+	SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBX8888);
 
 	int finishTheFunk = 0;
 
@@ -482,7 +488,7 @@ int main(int argc, char* argv[]) {
 		char* pixels = surface->pixels;
 
 		for (int i = 0; i < sceneObjectsCounter; i++) {
-			draw_scene(pixels, 512, 512, sceneObjects[i]);
+			draw_scene(pixels, 640, 480, sceneObjects[i]);
 		}
 
 		SDL_UnlockSurface(surface);
