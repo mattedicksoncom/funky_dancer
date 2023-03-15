@@ -226,7 +226,7 @@ void recurseChildren(int delta,
 	// rotate first
 	trs(sceneObjects[sceneObjectsCounter],
 	    0, 0, 0,
-	    currentTransform.rotation.x + 0, currentTransform.rotation.y, currentTransform.rotation.z + delta,
+	    currentTransform.rotation.x + delta, currentTransform.rotation.y, currentTransform.rotation.z + delta,
 	    1, 1, 1);
 
 	// then move into position
@@ -252,7 +252,7 @@ void recurseChildren(int delta,
 
 	// Update transform stacks
 	struct Vector3 newRotation = {
-		.x = currentTransform.rotation.x,
+		.x = currentTransform.rotation.x+ delta,
 		.y = currentTransform.rotation.y,
 		.z = currentTransform.rotation.z + delta
 	};
@@ -473,7 +473,7 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < sceneObjectForRealCount; i++) {
 			struct Vector3 cumulativeRotation[500] = { { .x = 0, .y = 0, .z = 0 } };
 			struct Vector3 cumulativeTransform[500] = { { .x = 0, .y = 0, .z = 0 } };
-			recurseChildren(delta, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation, cumulativeTransform, 1);
+			recurseChildren(delta* 2, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation, cumulativeTransform, 1);
 		}
 
 		SDL_LockSurface(surface);
@@ -491,7 +491,7 @@ int main(int argc, char* argv[]) {
 		SDL_UpdateWindowSurface(window);
 
 		//SDL_Delay(1000 / 12);
-		float targetFrameTime = 1000 / 12;
+		float targetFrameTime = 1000 / 24;
 
 		frameTicks = SDL_GetTicks() - startTicks;
 		if (frameTicks < targetFrameTime) {
