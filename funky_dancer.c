@@ -212,7 +212,9 @@ void recurseChildren(int delta,
                      struct mesh *sceneObjects[],
                      int *sceneObjectsCounter_ptr,
                      struct SceneObject *sceneObjectsForReal,
-                     struct Vector3 cumulativeRotation) {
+                     struct Vector3 transformRotationStack[],
+                     struct Vector3 transformPositionStack[],
+                     int transformStackDepth) {
 	int sceneObjectsCounter = *sceneObjectsCounter_ptr;
 
 	freeMem(sceneObjects, sceneObjectsCounter);
@@ -224,33 +226,56 @@ void recurseChildren(int delta,
 	// rotate first
 	trs(sceneObjects[sceneObjectsCounter],
 	    0, 0, 0,
-	    currentTransform.rotation.x + delta, currentTransform.rotation.y, currentTransform.rotation.z + delta,
+	    currentTransform.rotation.x + 0, currentTransform.rotation.y, currentTransform.rotation.z + delta,
 	    1, 1, 1);
 
 	// then move into position
 	trs(sceneObjects[sceneObjectsCounter],
 	    currentTransform.position.x, currentTransform.position.y, currentTransform.position.z,
 	    0, 0, 0,
-	    currentTransform.scale.x, currentTransform.scale.y, currentTransform.scale.z);
-
-	// do the cumulative rotation
-	trs(sceneObjects[sceneObjectsCounter],
-	    0, 0, 0,
-	    cumulativeRotation.x, cumulativeRotation.y, cumulativeRotation.z,
 	    1, 1, 1);
 
-	cumulativeRotation.x += currentTransform.rotation.x;
-	cumulativeRotation.y += currentTransform.rotation.y;
-	cumulativeRotation.z += currentTransform.rotation.z;
+	for (int i = transformStackDepth - 1; i >= 0; i--) {
+		// go backwards through transform stack
+		// rotate first
+		trs(sceneObjects[sceneObjectsCounter],
+		    0, 0, 0,
+		    transformRotationStack[i].x + 0, transformRotationStack[i].y, transformRotationStack[i].z,
+		    1, 1, 1);
 
-	cumulativeRotation.x += currentTransform.rotation.x + delta;
-	cumulativeRotation.z += currentTransform.rotation.z + delta;
+		// then move into position
+		trs(sceneObjects[sceneObjectsCounter],
+		    transformPositionStack[i].x, transformPositionStack[i].y, transformPositionStack[i].z,
+		    0, 0, 0,
+		    1, 1, 1);
+	}
+
+	// Update transform stacks
+	struct Vector3 newRotation = {
+		.x = currentTransform.rotation.x,
+		.y = currentTransform.rotation.y,
+		.z = currentTransform.rotation.z + delta
+	};
+	struct Vector3 newPosition = {
+		.x = currentTransform.position.x,
+		.y = currentTransform.position.y,
+		.z = currentTransform.position.z
+	};
+
+	transformRotationStack[transformStackDepth] = newRotation;
+	transformPositionStack[transformStackDepth] = newPosition;
 	
 
 	iterateCounter(sceneObjectsCounter_ptr);
 
 	for (int j = 0; j < sceneObjectsForReal->childCount; j++) {
-		recurseChildren(delta * 2, sceneObjects, sceneObjectsCounter_ptr, sceneObjectsForReal->children[j], cumulativeRotation);
+		recurseChildren(delta * 2,
+		                sceneObjects,
+		                sceneObjectsCounter_ptr,
+		                sceneObjectsForReal->children[j],
+		                transformRotationStack,
+		                transformPositionStack,
+		                transformStackDepth + 1);
 	}
 }
 
@@ -351,6 +376,30 @@ int main(int argc, char* argv[]) {
 	testObject.children[0] = &testObjectChild;
 	testObject.childCount = 1;
 
+	// adding a third child WOW!------------------------------------------------------------
+	struct mesh sceneCubeChildNested;
+	generateCube(1.0, 1.0, 1.0, &sceneCubeChildNested);
+
+	trs(&sceneCubeChildNested,
+	    0.5, 0.0, 0.0,
+	    0, 0, 0,
+	    1, 0.3, 0.3);
+	
+
+	struct SceneObject testObjectChildNested;
+	testObjectChildNested.mesh = &sceneCubeChildNested;
+
+	testObjectChildNested.transform.position = (struct Vector3){ .x = 1.0f, .y = 0.0f, .z = 0.0f };
+	testObjectChildNested.transform.scale = (struct Vector3){ .x = 1.0f, .y = 1.0f, .z = 1.0f };
+	testObjectChildNested.transform.rotation = (struct Quaternion){ .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	testObjectChildNested.attachPosition = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	testObjectChildNested.childCount = 0;
+
+	// add the child to the test mesh
+	testObjectChild.children[0] = &testObjectChildNested;
+	testObjectChild.childCount = 1;
+	// fin!------------------------------------------------------------
+
 	//sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
 
 	allMeshes[meshCount++] = &sphereMesh;
@@ -374,7 +423,8 @@ int main(int argc, char* argv[]) {
 		sceneObjectsCounter2++;
 
 		printf("%i childcount", sceneObjectsForReal[i]->childCount);
-
+		
+		// need to handle this better
 		for (int j = 0; j < sceneObjectsForReal[i]->childCount; j++) {
 			struct mesh *originalMesh2 = sceneObjectsForReal[i]->children[j]->mesh;
 			struct mesh *newMesh2 = malloc(sizeof(struct mesh));
@@ -386,6 +436,19 @@ int main(int argc, char* argv[]) {
 			sceneObjects[sceneObjectsCounter2] = newMesh2;
 
 			sceneObjectsCounter2++;
+
+			for (int k = 0; k < sceneObjectsForReal[i]->children[j]->childCount; k++) {
+				struct mesh *originalMesh3 = sceneObjectsForReal[i]->children[j]->children[k]->mesh;
+				struct mesh *newMesh3 = malloc(sizeof(struct mesh));
+
+				// Clone the original mesh into the new mesh
+				cloneMeshToScene(originalMesh3, newMesh3);
+
+				// Add the new mesh to the scene meshes
+				sceneObjects[sceneObjectsCounter2] = newMesh3;
+
+				sceneObjectsCounter2++;
+			}
 		}
 	}
 
@@ -408,8 +471,9 @@ int main(int argc, char* argv[]) {
 
 		// attempt to render the scene meshes ----------------------------------
 		for (int i = 0; i < sceneObjectForRealCount; i++) {
-			struct Vector3 cumulativeRotation = { .x = 0, .y = 0, .z = 0 };
-			recurseChildren(delta, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation);
+			struct Vector3 cumulativeRotation[500] = { { .x = 0, .y = 0, .z = 0 } };
+			struct Vector3 cumulativeTransform[500] = { { .x = 0, .y = 0, .z = 0 } };
+			recurseChildren(delta, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation, cumulativeTransform, 1);
 		}
 
 		SDL_LockSurface(surface);
