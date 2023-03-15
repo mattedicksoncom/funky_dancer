@@ -10,6 +10,42 @@
 
 // gcc -Wall -Wextra -std=c99 -pedantic funky_dancer.c -ISDL2\include -L.\SDL2\lib -lmingw32 -lSDL2main -lSDL2 -o funky_dancer
 
+struct MouseHandler {
+	int startX;
+	int startY;
+	bool isDown;
+};
+
+struct OrthographicCamera3D {
+	struct Vec3f position;
+	struct Vec3f rotation;
+};
+
+struct Vec3f WorldToScreen3D(struct OrthographicCamera3D camera, struct Vec3f worldPoint) {
+	// calc view matrix
+	struct Mat4 translation = Mat4_Translation((struct Vec3f){.x = -camera.position.x, .y = -camera.position.y, .z = -camera.position.z});
+	struct Mat4 rotationX = Mat4_RotationX(-camera.rotation.x);
+	struct Mat4 rotationY = Mat4_RotationY(-camera.rotation.y);
+	struct Mat4 rotationZ = Mat4_RotationZ(-camera.rotation.z);
+	struct Mat4 view = Mat4_Multiply(rotationZ, Mat4_Multiply(rotationY, Mat4_Multiply(rotationX, translation)));
+	// calc orthographic projection matrix
+	float left = -1.0f;
+	float right = 1.0f;
+	float top = 1.0f;
+	float bottom = -1.0f;
+	float near = -1.0f;
+	float far = 1.0f;
+	struct Mat4 projection = Mat4_Orthographic(left, right, top, bottom, near, far);
+
+	//calc view-projection matrix
+	struct Mat4 viewProjection = Mat4_Multiply(projection, view);
+
+	// transform world point to screen space
+	struct Vec3f screenPoint = Mat4_MultiplyVec3(viewProjection, worldPoint);
+
+	return screenPoint;
+}
+
 void trs(struct mesh *outMesh,
          float tx, float ty, float tz,
          float rx, float ry, float rz,
@@ -113,8 +149,12 @@ void line(int x0, int y0, int x1, int y1, char* pixels, unsigned int color) {
 }
 
 //void draw_scene(SDL_Surface* surface, int width, int height, struct mesh *sphereMesh_ptr) {
-void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr) {
+void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr, struct OrthographicCamera3D *camera_ptr) {
 	struct mesh sphereMesh = *sphereMesh_ptr;
+
+	//char title[64];
+	//snprintf(title, sizeof(title), "Mouse Position - X: %f, Y: %f", camera_ptr->position.x, camera_ptr->position.y);
+	//SDL_SetWindowTitle(window, title);
 
 	//int pitch = surface->pitch;
 
@@ -138,18 +178,28 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 				.y = sphereMesh.vert[b * 3 + 1],
 				.z = sphereMesh.vert[b * 3 + 2]
 			};
-
-			int x0 = (v0.x + 1.) * 0.5 * width / 2. + (0.25 * width);
-			int y0 = (v0.y + 1.) * 0.5 * height / 2. + (0.25 * height);
-			int x1 = (v1.x + 1.) * 0.5 * width / 2. + (0.25 * width);
-			int y1 = (v1.y + 1.) * 0.5 * height / 2. + (0.25 * height);
+			
 			// fix this!!!
-			int x0 = (v0.x + 1.) * 0.5 * height / 2. + (0.25 * height);
-			int y0 = (v0.y + 1.) * 0.5 * width / 2. + (0.25 * width);
-			int x1 = (v1.x + 1.) * 0.5 * height / 2. + (0.25 * height);
-			int y1 = (v1.y + 1.) * 0.5 * width / 2. + (0.25 * width);
+			//int x0 = (v0.x + 1.) * 0.5 * height / 2. + (0.25 * height);
+			//int y0 = (v0.y + 1.) * 0.5 * width / 2. + (0.25 * width);
+			//int x1 = (v1.x + 1.) * 0.5 * height / 2. + (0.25 * height);
+			//int y1 = (v1.y + 1.) * 0.5 * width / 2. + (0.25 * width);
 
-			line(x0, y0, x1, y1, pixels, 0x2299ff00);
+			//line(x0, y0, x1, y1, pixels, 0x2299ff00);
+
+			struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
+			struct Vec3f screenPoint_2 = WorldToScreen3D(*camera_ptr, v1);
+
+			float horiMult = 100;
+			float vertMult = 100;
+			float horiOffset = 640 / 2;
+			float vertOffset = 480 / 2;
+			float screenX0 = screenPoint_1.x * horiMult + vertOffset;
+			float screenY0 = screenPoint_1.y * vertMult + horiOffset;
+			float screenX1 = screenPoint_2.x * horiMult + vertOffset;
+			float screenY1 = screenPoint_2.y * vertMult + horiOffset;
+
+			line(screenX0, screenY0, screenX1, screenY1, pixels, 0x2299ff55);
 		}
 	}
 }
@@ -307,6 +357,17 @@ int main(int argc, char* argv[]) {
 	SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBX8888);
 
 	int finishTheFunk = 0;
+
+	struct MouseHandler mouseHandler = {
+		.startX = 0.0,
+		.startY = 0.0,
+		.isDown = false
+	};
+
+	struct OrthographicCamera3D camera = {
+		.position = {.x = 0.0, .y = 0.0, .z = 0.0},
+		.rotation = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
+	};
 
 	// generate the mesh before the loop
 	struct mesh sphereMesh;
@@ -470,6 +531,33 @@ int main(int argc, char* argv[]) {
 			if (event.type == SDL_QUIT) {
 				finishTheFunk = 1;
 			}
+
+			if (event.type == SDL_MOUSEMOTION) {
+				int mouseX = event.motion.x;
+				int mouseY = event.motion.y;
+
+				if (mouseHandler.isDown) {
+					camera.position.x = (float)(mouseHandler.startX - mouseX) * 0.003;
+					camera.position.y = (float)(mouseHandler.startY - mouseY) * 0.003;
+					//camera.rotation.x = (float)(mouseHandler.startX - mouseX) * 0.01;
+				}
+			}
+
+			//mouseHandler
+			// handle the mouse down
+			if (event.type == SDL_MOUSEBUTTONDOWN) {
+				if (event.button.button == SDL_BUTTON_LEFT) {
+					mouseHandler.startX = event.button.x;
+					mouseHandler.startY = event.button.y;
+					mouseHandler.isDown = true;
+				}
+			}
+
+			if (event.type == SDL_MOUSEBUTTONUP) {
+				if (event.button.button == SDL_BUTTON_LEFT) {
+					mouseHandler.isDown = false;
+				}
+			}
 		}
 
 		SDL_FillRect(surface, NULL, 0);
@@ -487,8 +575,13 @@ int main(int argc, char* argv[]) {
 
 		char* pixels = surface->pixels;
 
+		//char title[64];
+		//snprintf(title, sizeof(title), "Mouse Position - X: %f, Y: %f", camera.position.x, camera.position.y);
+
+		//SDL_SetWindowTitle(window, title);
+
 		for (int i = 0; i < sceneObjectsCounter; i++) {
-			draw_scene(pixels, 640, 480, sceneObjects[i]);
+			draw_scene(pixels, 640, 480, sceneObjects[i], &camera);
 		}
 
 		SDL_UnlockSurface(surface);
