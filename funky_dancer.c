@@ -3,10 +3,10 @@
 #include <SDL2/SDL.h>
 #include <math.h>
 
-#include "math_stuff.c"
 #include "common_structs.c"
-#include "mesh_generators.c"
 #include "mat4.c"
+#include "math_stuff.c"
+#include "mesh_generators.c"
 
 // gcc -Wall -Wextra -std=c99 -pedantic funky_dancer.c -ISDL2\include -L.\SDL2\lib -lmingw32 -lSDL2main -lSDL2 -o funky_dancer
 
