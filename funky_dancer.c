@@ -11,9 +11,9 @@
 // gcc -Wall -Wextra -std=c99 -pedantic funky_dancer.c -ISDL2\include -L.\SDL2\lib -lmingw32 -lSDL2main -lSDL2 -o funky_dancer
 
 struct MouseHandler {
-	int startX;
-	int startY;
-	bool isDown;
+    int startX;
+    int startY;
+    bool isDown;
 };
 
 struct OrthographicCamera3D {
@@ -23,28 +23,29 @@ struct OrthographicCamera3D {
 };
 
 struct Vec3f WorldToScreen3D(struct OrthographicCamera3D camera, struct Vec3f worldPoint) {
-	// calc view matrix
-	struct Mat4 translation = Mat4_Translation((struct Vec3f){.x = -camera.position.x, .y = -camera.position.y, .z = -camera.position.z});
-	struct Mat4 rotationX = Mat4_RotationX(-camera.rotation.x);
-	struct Mat4 rotationY = Mat4_RotationY(-camera.rotation.y);
-	struct Mat4 rotationZ = Mat4_RotationZ(-camera.rotation.z);
-	struct Mat4 view = Mat4_Multiply(rotationZ, Mat4_Multiply(rotationY, Mat4_Multiply(rotationX, translation)));
-	// calc orthographic projection matrix
-	float left = -1.0f;
-	float right = 1.0f;
-	float top = 1.0f;
-	float bottom = -1.0f;
-	float near = -1.0f;
-	float far = 1.0f;
-	struct Mat4 projection = Mat4_Orthographic(left, right, top, bottom, near, far);
+    // calc view matrix
+    struct Mat4 translation = Mat4_Translation((struct Vec3f){
+                         .x = -camera.position.x,
+                         .y = -camera.position.y, 
+                         .z = -camera.position.z});
+    struct Mat4 rotation = QuaternionToMatrix(camera.q_rotation);
+    struct Mat4 view = Mat4_Multiply(translation, rotation);
+    // calc orthographic projection matrix
+    float left = -1.0f;
+    float right = 1.0f;
+    float top = 1.0f;
+    float bottom = -1.0f;
+    float near = -1.0f;
+    float far = 1.0f;
+    struct Mat4 projection = Mat4_Orthographic(left, right, top, bottom, near, far);
 
-	//calc view-projection matrix
-	struct Mat4 viewProjection = Mat4_Multiply(projection, view);
+    // calc view-projection matrix
+    struct Mat4 viewProjection = Mat4_Multiply(projection, view);
 
-	// transform world point to screen space
-	struct Vec3f screenPoint = Mat4_MultiplyVec3(viewProjection, worldPoint);
+    // transform world point to screen space
+    struct Vec3f screenPoint = Mat4_MultiplyVec3(viewProjection, worldPoint);
 
-	return screenPoint;
+    return screenPoint;
 }
 
 void trs(struct mesh *outMesh,
@@ -59,20 +60,20 @@ void trs(struct mesh *outMesh,
 		tx, ty, tz, 1.0f
 	};
 
-	// Rotation matrix
-	float c, s, len;
-	float axis[3] = { rx, ry, rz };
-	len = sqrtf(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
-	if (len != 0.0f) {
-		c = cosf(M_PI / 180.0f * len);
-		s = sinf(M_PI / 180.0f * len);
-		axis[0] /= len;
-		axis[1] /= len;
-		axis[2] /= len;
-	} else {
-		c = 1.0f;
-		s = 0.0f;
-	}
+    // Rotation matrix
+    float c, s, len;
+    float axis[3] = {rx, ry, rz};
+    len = sqrtf(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+    if (len != 0.0f) {
+        c = cosf(M_PI / 180.0f * len);
+        s = sinf(M_PI / 180.0f * len);
+        axis[0] /= len;
+        axis[1] /= len;
+        axis[2] /= len;
+    } else {
+        c = 1.0f;
+        s = 0.0f;
+    }
 	float t2[16] = {
 		axis[0]*axis[0]*(1.0f-c) + c, axis[0]*axis[1]*(1.0f-c)-axis[2]*s, axis[0]*axis[2]*(1.0f-c) + axis[1]*s, 0.0f,
 		axis[0]*axis[1]*(1.0f-c) + axis[2]*s, axis[1]*axis[1]*(1.0f-c) + c, axis[1]*axis[2]*(1.0f-c)-axis[0]*s, 0.0f,
@@ -80,7 +81,7 @@ void trs(struct mesh *outMesh,
 		0.0f, 0.0f, 0.0f, 1.0f
 	};
 
-	// Scale matrix
+    // Scale matrix
 	float s3[16] = {
 		sx, 0.0f, 0.0f, 0.0f,
 		0.0f, sy, 0.0f, 0.0f,
@@ -88,85 +89,84 @@ void trs(struct mesh *outMesh,
 		0.0f, 0.0f, 0.0f, 1.0f
 	};
 
-	// Transform each vertex
-	for (int i = 0; i < outMesh->vertCount; i++) {
-		// Apply translation, rotation, and scaling to vertex
-		float v[4] = { outMesh->vert[i*3], outMesh->vert[i*3 + 1], outMesh->vert[i*3 + 2], 1.0f };
-		float v2[4];
-		multiplyMatrixVector(t, v, v2);
-		multiplyMatrixVector(t2, v2, v);
-		multiplyMatrixVector(s3, v, v2);
-		// Store transformed vertex back into mesh
-		outMesh->vert[i*3] = v2[0];
-		outMesh->vert[i*3 + 1] = v2[1];
-		outMesh->vert[i*3 + 2] = v2[2];
-	}
+    // Transform each vertex
+    for (int i = 0; i < outMesh->vertCount; i++) {
+        // Apply translation, rotation, and scaling to vertex
+        float v[4] = {outMesh->vert[i * 3], outMesh->vert[i * 3 + 1], outMesh->vert[i * 3 + 2], 1.0f};
+        float v2[4];
+        multiplyMatrixVector(t, v, v2);
+        multiplyMatrixVector(t2, v2, v);
+        multiplyMatrixVector(s3, v, v2);
+        // Store transformed vertex back into mesh
+        outMesh->vert[i * 3] = v2[0];
+        outMesh->vert[i * 3 + 1] = v2[1];
+        outMesh->vert[i * 3 + 2] = v2[2];
+    }
 }
 
 // void line(int x0, int y0, int x1, int y1, SDL_Surface* surface, unsigned int color) { 
-void line(int x0, int y0, int x1, int y1, char* pixels, unsigned int color) {
-	// pitch: the length of a row of pixels in bytes (read-only)
-	// const int pitch = surface->pitch;
-	// char* pixels = surface->pixels;
-	// need a bounds check
-	//int pitch = sizeof(char) * 2048;
+void line(int x0, int y0, int x1, int y1, char *pixels, unsigned int color) {
+    // pitch: the length of a row of pixels in bytes (read-only)
+    // const int pitch = surface->pitch;
+    // char* pixels = surface->pixels;
+    // need a bounds check
+    // int pitch = sizeof(char) * 2048;
 	int pitch = sizeof(char) * 640 * 4; // there are so many questions here, I put the description above and yet I keep this odd bit of code. Why?
-	
-	bool steep = false;
-	if (abs(x0-x1) < abs(y0-y1)) {
-		swap(&x0, &y0);
-		swap(&x1, &y1);
-		steep = true;
-	}
-	if (x0 > x1) {
-		swap(&x0, &x1);
-		swap(&y0, &y1);
-	}
-	int dx = x1-x0;
-	int dy = y1-y0;
-	int derror2 = abs(dy)*2;
-	int error2 = 0;
-	int y = y0;
-	for (int x = x0; x <= x1; x++) {
-		if (steep) {
-			//image.set(y, x, color); 
-			if (x >= 0 && x < 640 && y >= 0 && y < 480) {
-				unsigned int* row = (unsigned int*)(pixels + pitch * y);
-				row[x] = color;
-			}
-		} else {
-			//image.set(x, y, color);
-			if (x >= 0 && x < 480 && y >= 0 && y < 640) {
-				unsigned int* row = (unsigned int*)(pixels + pitch * x);
-				row[y] = color;
-			}
-		}
-		error2 += derror2;
-		if (error2 > dx) {
-			y += (y1 > y0?1:-1);
-			error2 -= dx*2;
-		}
-	}
+
+    bool steep = false;
+    if (abs(x0 - x1) < abs(y0 - y1)) {
+        swap(&x0, &y0);
+        swap(&x1, &y1);
+        steep = true;
+    }
+    if (x0 > x1) {
+        swap(&x0, &x1);
+        swap(&y0, &y1);
+    }
+    int dx = x1 - x0;
+    int dy = y1 - y0;
+    int derror2 = abs(dy) * 2;
+    int error2 = 0;
+    int y = y0;
+    for (int x = x0; x <= x1; x++) {
+        if (steep) {
+            // image.set(y, x, color);
+            if (x >= 0 && x < 640 && y >= 0 && y < 480) {
+                unsigned int *row = (unsigned int *)(pixels + pitch * y);
+                row[x] = color;
+            }
+        } else {
+            // image.set(x, y, color);
+            if (x >= 0 && x < 480 && y >= 0 && y < 640) {
+                unsigned int *row = (unsigned int *)(pixels + pitch * x);
+                row[y] = color;
+            }
+        }
+        error2 += derror2;
+        if (error2 > dx) {
+            y += (y1 > y0 ? 1 : -1);
+            error2 -= dx * 2;
+        }
+    }
 }
 
 //void draw_scene(SDL_Surface* surface, int width, int height, struct mesh *sphereMesh_ptr) {
 void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr, struct OrthographicCamera3D *camera_ptr) {
-	struct mesh sphereMesh = *sphereMesh_ptr;
+    struct mesh sphereMesh = *sphereMesh_ptr;
 
-	//char title[64];
+    // char title[64];
 	//snprintf(title, sizeof(title), "Mouse Position - X: %f, Y: %f", camera_ptr->position.x, camera_ptr->position.y);
-	//SDL_SetWindowTitle(window, title);
+    // SDL_SetWindowTitle(window, title);
 
-	//int pitch = surface->pitch;
+    // int pitch = surface->pitch;
 
-	// draw the mesh
-	for (int i = 0; i < sphereMesh.faceCount; i++) {
+    // draw the mesh
+    for (int i = 0; i < sphereMesh.faceCount; i++) {
+        int faceIndex = i * 3;
 
-		int faceIndex = i * 3;
-
-		for (int j = 0; j < 3; j++) {
-			int a = sphereMesh.face[faceIndex + j];
-			int b = sphereMesh.face[faceIndex + (j + 1) % 3];
+        for (int j = 0; j < 3; j++) {
+            int a = sphereMesh.face[faceIndex + j];
+            int b = sphereMesh.face[faceIndex + (j + 1) % 3];
 
 			struct Vec3f v0 = {
 				.x = sphereMesh.vert[a * 3],
@@ -179,79 +179,79 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 				.y = sphereMesh.vert[b * 3 + 1],
 				.z = sphereMesh.vert[b * 3 + 2]
 			};
-			
-			// fix this!!!
-			//int x0 = (v0.x + 1.) * 0.5 * height / 2. + (0.25 * height);
-			//int y0 = (v0.y + 1.) * 0.5 * width / 2. + (0.25 * width);
-			//int x1 = (v1.x + 1.) * 0.5 * height / 2. + (0.25 * height);
-			//int y1 = (v1.y + 1.) * 0.5 * width / 2. + (0.25 * width);
 
-			//line(x0, y0, x1, y1, pixels, 0x2299ff00);
+            // fix this!!!
+            // int x0 = (v0.x + 1.) * 0.5 * height / 2. + (0.25 * height);
+            // int y0 = (v0.y + 1.) * 0.5 * width / 2. + (0.25 * width);
+            // int x1 = (v1.x + 1.) * 0.5 * height / 2. + (0.25 * height);
+            // int y1 = (v1.y + 1.) * 0.5 * width / 2. + (0.25 * width);
 
-			struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
-			struct Vec3f screenPoint_2 = WorldToScreen3D(*camera_ptr, v1);
+            // line(x0, y0, x1, y1, pixels, 0x2299ff00);
 
-			float horiMult = 100;
-			float vertMult = 100;
-			float horiOffset = 640 / 2;
-			float vertOffset = 480 / 2;
-			float screenX0 = screenPoint_1.x * horiMult + vertOffset;
-			float screenY0 = screenPoint_1.y * vertMult + horiOffset;
-			float screenX1 = screenPoint_2.x * horiMult + vertOffset;
-			float screenY1 = screenPoint_2.y * vertMult + horiOffset;
+            struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
+            struct Vec3f screenPoint_2 = WorldToScreen3D(*camera_ptr, v1);
 
-			line(screenX0, screenY0, screenX1, screenY1, pixels, 0x2299ff55);
-		}
-	}
+            float horiMult = 100;
+            float vertMult = 100;
+            float horiOffset = 640 / 2;
+            float vertOffset = 480 / 2;
+            float screenX0 = screenPoint_1.x * horiMult + vertOffset;
+            float screenY0 = screenPoint_1.y * vertMult + horiOffset;
+            float screenX1 = screenPoint_2.x * horiMult + vertOffset;
+            float screenY1 = screenPoint_2.y * vertMult + horiOffset;
+
+            line(screenX0, screenY0, screenX1, screenY1, pixels, 0x2299ff55);
+        }
+    }
 }
 
 void cloneMesh(struct mesh *originalMesh, struct mesh *newMesh) {
-	// Allocate memory for the vertices and copy the values
-	//if (newMesh->vert != NULL) {
-	//free(newMesh->vert);
-	//}
-	newMesh->vert = malloc(sizeof(float) * originalMesh->vertCount * 3);
-	memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
-	newMesh->vertCount = originalMesh->vertCount;
+    // Allocate memory for the vertices and copy the values
+    // if (newMesh->vert != NULL) {
+    // free(newMesh->vert);
+    //}
+    newMesh->vert = malloc(sizeof(float) * originalMesh->vertCount * 3);
+    memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
+    newMesh->vertCount = originalMesh->vertCount;
 
-	// Allocate memory for the faces and copy the values
-	//if (newMesh->face != NULL) {
-	//free(newMesh->face);
-	//}
-	newMesh->face = malloc(sizeof(int) * originalMesh->faceCount * 3);
-	memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
-	newMesh->faceCount = originalMesh->faceCount;
+    // Allocate memory for the faces and copy the values
+    // if (newMesh->face != NULL) {
+    // free(newMesh->face);
+    //}
+    newMesh->face = malloc(sizeof(int) * originalMesh->faceCount * 3);
+    memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
+    newMesh->faceCount = originalMesh->faceCount;
 }
 
 void cloneMeshToScene(struct mesh *originalMesh, struct mesh *newMesh) {
-	// Allocate memory for the vertices and copy the values
-	//if (newMesh->vert != NULL) {
-	//free(newMesh->vert);
-	//}
-	newMesh->vert = malloc(sizeof(float) * originalMesh->vertCount * 3);
-	memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
-	newMesh->vertCount = originalMesh->vertCount;
+    // Allocate memory for the vertices and copy the values
+    // if (newMesh->vert != NULL) {
+    // free(newMesh->vert);
+    //}
+    newMesh->vert = malloc(sizeof(float) * originalMesh->vertCount * 3);
+    memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
+    newMesh->vertCount = originalMesh->vertCount;
 
-	// Allocate memory for the faces and copy the values
-	//if (newMesh->face != NULL) {
-	//free(newMesh->face);
-	//}
-	newMesh->face = malloc(sizeof(int) * originalMesh->faceCount * 3);
-	memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
-	newMesh->faceCount = originalMesh->faceCount;
+    // Allocate memory for the faces and copy the values
+    // if (newMesh->face != NULL) {
+    // free(newMesh->face);
+    //}
+    newMesh->face = malloc(sizeof(int) * originalMesh->faceCount * 3);
+    memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
+    newMesh->faceCount = originalMesh->faceCount;
 }
 
 void cloneMeshToScene_NOMALLOC(struct mesh *originalMesh, struct mesh *newMesh) {
-	memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
-	newMesh->vertCount = originalMesh->vertCount;
+    memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
+    newMesh->vertCount = originalMesh->vertCount;
 
-	memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
-	newMesh->faceCount = originalMesh->faceCount;
+    memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
+    newMesh->faceCount = originalMesh->faceCount;
 }
 void freeMem(struct mesh *sceneObjects[], int sceneObjectsCounter) {
-	// free the memory for these two things
-	free(sceneObjects[sceneObjectsCounter]->vert);
-	free(sceneObjects[sceneObjectsCounter]->face);
+    // free the memory for these two things
+    free(sceneObjects[sceneObjectsCounter]->vert);
+    free(sceneObjects[sceneObjectsCounter]->face);
 }
 
 void iterateCounter(int *sceneObjectCounter_ptr) {
@@ -259,11 +259,11 @@ void iterateCounter(int *sceneObjectCounter_ptr) {
 }
 
 void testCloneMesh(struct mesh *sceneObjects[], int sceneObjectsCounter, struct mesh *originalMesh2) {
-	struct mesh *newMesh2 = sceneObjects[sceneObjectsCounter];
+    struct mesh *newMesh2 = sceneObjects[sceneObjectsCounter];
 
-	cloneMeshToScene_NOMALLOC(originalMesh2, newMesh2);
+    cloneMeshToScene_NOMALLOC(originalMesh2, newMesh2);
 
-	sceneObjects[sceneObjectsCounter] = newMesh2;
+    sceneObjects[sceneObjectsCounter] = newMesh2;
 }
 
 void recurseChildren(int delta,
@@ -273,13 +273,13 @@ void recurseChildren(int delta,
                      struct Vector3 transformRotationStack[],
                      struct Vector3 transformPositionStack[],
                      int transformStackDepth) {
-	int sceneObjectsCounter = *sceneObjectsCounter_ptr;
+    int sceneObjectsCounter = *sceneObjectsCounter_ptr;
 
-	freeMem(sceneObjects, sceneObjectsCounter);
+    freeMem(sceneObjects, sceneObjectsCounter);
 
-	testCloneMesh(sceneObjects, sceneObjectsCounter, sceneObjectsForReal->mesh);
+    testCloneMesh(sceneObjects, sceneObjectsCounter, sceneObjectsForReal->mesh);
 
-	struct Transform currentTransform = sceneObjectsForReal->transform;
+    struct Transform currentTransform = sceneObjectsForReal->transform;
 
 	// rotate first
 	trs(sceneObjects[sceneObjectsCounter],
@@ -293,40 +293,37 @@ void recurseChildren(int delta,
 	    0, 0, 0,
 	    1, 1, 1);
 
-	for (int i = transformStackDepth - 1; i >= 0; i--) {
-		// go backwards through transform stack
-		// rotate first
+    for (int i = transformStackDepth - 1; i >= 0; i--) {
+        // go backwards through transform stack
+        // rotate first
 		trs(sceneObjects[sceneObjectsCounter],
 		    0, 0, 0,
 		    transformRotationStack[i].x + 0, transformRotationStack[i].y, transformRotationStack[i].z,
 		    1, 1, 1);
 
-		// then move into position
+        // then move into position
 		trs(sceneObjects[sceneObjectsCounter],
 		    transformPositionStack[i].x, transformPositionStack[i].y, transformPositionStack[i].z,
 		    0, 0, 0,
 		    1, 1, 1);
-	}
+    }
 
-	// Update transform stacks
-	struct Vector3 newRotation = {
-		.x = currentTransform.rotation.x+ delta,
-		.y = currentTransform.rotation.y,
-		.z = currentTransform.rotation.z + delta
-	};
+    // Update transform stacks
+    struct Vector3 newRotation = {.x = currentTransform.rotation.x + delta,
+                                  .y = currentTransform.rotation.y,
+                                  .z = currentTransform.rotation.z + delta};
 	struct Vector3 newPosition = {
 		.x = currentTransform.position.x,
 		.y = currentTransform.position.y,
 		.z = currentTransform.position.z
 	};
 
-	transformRotationStack[transformStackDepth] = newRotation;
-	transformPositionStack[transformStackDepth] = newPosition;
-	
+    transformRotationStack[transformStackDepth] = newRotation;
+    transformPositionStack[transformStackDepth] = newPosition;
 
-	iterateCounter(sceneObjectsCounter_ptr);
+    iterateCounter(sceneObjectsCounter_ptr);
 
-	for (int j = 0; j < sceneObjectsForReal->childCount; j++) {
+    for (int j = 0; j < sceneObjectsForReal->childCount; j++) {
 		recurseChildren(delta * 2,
 		                sceneObjects,
 		                sceneObjectsCounter_ptr,
@@ -334,30 +331,30 @@ void recurseChildren(int delta,
 		                transformRotationStack,
 		                transformPositionStack,
 		                transformStackDepth + 1);
-	}
+    }
 }
 
-int main(int argc, char* argv[]) {
-	char *funkyString = "Starting the funk!";
-	printf("%s\n", funkyString);
+int main(int argc, char *argv[]) {
+    char *funkyString = "Starting the funk!";
+    printf("%s\n", funkyString);
 
-	Uint32 startTicks, frameTicks;
+    Uint32 startTicks, frameTicks;
 
-	SDL_Window* window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
-	// SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
-	SDL_SetWindowOpacity(window, 1.0);
+    SDL_Window *window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
+    // SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_SetWindowOpacity(window, 1.0);
 
-	SDL_CreateRenderer(window, -1, 0);
+    SDL_CreateRenderer(window, -1, 0);
 
-	if (!window) {
-		SDL_Quit();
-		return 1;
-	}
+    if (!window) {
+        SDL_Quit();
+        return 1;
+    }
 
-	SDL_Surface* screen = SDL_GetWindowSurface(window);
-	SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBX8888);
+    SDL_Surface *screen = SDL_GetWindowSurface(window);
+    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBX8888);
 
-	int finishTheFunk = 0;
+    int finishTheFunk = 0;
 
 	struct MouseHandler mouseHandler = {
 		.startX = 0.0,
@@ -365,67 +362,67 @@ int main(int argc, char* argv[]) {
 		.isDown = false
 	};
 
-	struct OrthographicCamera3D camera = {
-		.position = {.x = 0.0, .y = 0.0, .z = 0.0},
-		.rotation = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
+    struct OrthographicCamera3D camera = {
+        .position = {.x = 0.0, .y = 0.0, .z = 0.0},
+        .rotation = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
         .q_rotation = {.w = 0.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f},
     };
 
-	// generate the mesh before the loop
-	struct mesh sphereMesh;
-	int subdivisions = 10;
-	generateSphere(1.0, subdivisions, &sphereMesh);
+    // generate the mesh before the loop
+    struct mesh sphereMesh;
+    int subdivisions = 10;
+    generateSphere(1.0, subdivisions, &sphereMesh);
 	trs(&sphereMesh,
 	    0, 0, 0,
 	    0, 0, 0,
 	    0.5, 0.5, 1);
 
-	struct mesh sphereMeshShift;
-	generateSphere(0.2, 5, &sphereMeshShift);
+    struct mesh sphereMeshShift;
+    generateSphere(0.2, 5, &sphereMeshShift);
 	trs(&sphereMeshShift,
 	    1.5, 0, 0,
 	    0, 0, 0,
 	    1, 1, 1);
 
-	struct mesh cubeMesh;
-	generateCube(0.8, 0.5, 0.7, &cubeMesh);
+    struct mesh cubeMesh;
+    generateCube(0.8, 0.5, 0.7, &cubeMesh);
 	trs(&cubeMesh,
 	    2.0, 0, 0,
 	    0, 0, 0,
 	    1, 1, 1);
 
 
-	struct mesh *allMeshes[500]; // limit to 500 for now
-	int meshCount = 0;
-	struct mesh *sceneObjects[500]; // limit to 500 for now
-	int sceneMeshCount = 0;
+    struct mesh *allMeshes[500]; // limit to 500 for now
+    int meshCount = 0;
+    struct mesh *sceneObjects[500]; // limit to 500 for now
+    int sceneMeshCount = 0;
 
-	struct SceneObject *sceneObjectsForReal[500]; // limit to 500 for now
-	int sceneObjectForRealCount = 0;
+    struct SceneObject *sceneObjectsForReal[500]; // limit to 500 for now
+    int sceneObjectForRealCount = 0;
 
-	// test rendering a scene object
-	struct mesh sceneCubeTest;
-	generateCube(1.0, 1.0, 1.0, &sceneCubeTest);
+    // test rendering a scene object
+    struct mesh sceneCubeTest;
+    generateCube(1.0, 1.0, 1.0, &sceneCubeTest);
 
-	struct SceneObject testObject;
-	testObject.mesh = &sceneCubeTest;
+    struct SceneObject testObject;
+    testObject.mesh = &sceneCubeTest;
 
 	trs(&sceneCubeTest,
 	    0.0, 0.5, 0.0,
 	    0, 0, 0,
 	    0.3, 1.0, 0.3);
 
-	testObject.transform.position = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
-	testObject.transform.scale = (struct Vector3){ .x = 1.0f, .y = 1.0f, .z = 1.0f };
-	testObject.transform.rotation = (struct Quaternion){ .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f };
-	testObject.attachPosition = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
-	testObject.childCount = 0;
+    testObject.transform.position = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
+    testObject.transform.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
+    testObject.transform.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f};
+    testObject.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
+    testObject.childCount = 0;
 
-	sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
+    sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
 
-	// test adding a child
-	struct mesh sceneCubeChild;
-	generateCube(1.0, 1.0, 1.0, &sceneCubeChild);
+    // test adding a child
+    struct mesh sceneCubeChild;
+    generateCube(1.0, 1.0, 1.0, &sceneCubeChild);
 
 	trs(&sceneCubeChild,
 	    0.5, 0.0, 0.0,
@@ -433,22 +430,22 @@ int main(int argc, char* argv[]) {
 	    1, 0.3, 0.3);
 	
 
-	struct SceneObject testObjectChild;
-	testObjectChild.mesh = &sceneCubeChild;
+    struct SceneObject testObjectChild;
+    testObjectChild.mesh = &sceneCubeChild;
 
-	testObjectChild.transform.position = (struct Vector3){ .x = 0.0f, .y = 1.0f, .z = 0.0f };
-	testObjectChild.transform.scale = (struct Vector3){ .x = 1.0f, .y = 1.0f, .z = 1.0f };
-	testObjectChild.transform.rotation = (struct Quaternion){ .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f };
-	testObjectChild.attachPosition = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
-	testObjectChild.childCount = 0;
+    testObjectChild.transform.position = (struct Vector3){.x = 0.0f, .y = 1.0f, .z = 0.0f};
+    testObjectChild.transform.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
+    testObjectChild.transform.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f};
+    testObjectChild.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
+    testObjectChild.childCount = 0;
 
-	// add the child to the test mesh
-	testObject.children[0] = &testObjectChild;
-	testObject.childCount = 1;
+    // add the child to the test mesh
+    testObject.children[0] = &testObjectChild;
+    testObject.childCount = 1;
 
 	// adding a third child WOW!------------------------------------------------------------
 	struct mesh sceneCubeChildNested;
-	generateCube(1.0, 1.0, 1.0, &sceneCubeChildNested);
+    generateCube(1.0, 1.0, 1.0, &sceneCubeChildNested);
 
 	trs(&sceneCubeChildNested,
 	    0.5, 0.0, 0.0,
@@ -456,170 +453,171 @@ int main(int argc, char* argv[]) {
 	    1, 0.3, 0.3);
 	
 
-	struct SceneObject testObjectChildNested;
-	testObjectChildNested.mesh = &sceneCubeChildNested;
+    struct SceneObject testObjectChildNested;
+    testObjectChildNested.mesh = &sceneCubeChildNested;
 
-	testObjectChildNested.transform.position = (struct Vector3){ .x = 1.0f, .y = 0.0f, .z = 0.0f };
-	testObjectChildNested.transform.scale = (struct Vector3){ .x = 1.0f, .y = 1.0f, .z = 1.0f };
-	testObjectChildNested.transform.rotation = (struct Quaternion){ .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f };
-	testObjectChildNested.attachPosition = (struct Vector3){ .x = 0.0f, .y = 0.0f, .z = 0.0f };
-	testObjectChildNested.childCount = 0;
+    testObjectChildNested.transform.position = (struct Vector3){.x = 1.0f, .y = 0.0f, .z = 0.0f};
+    testObjectChildNested.transform.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
+    testObjectChildNested.transform.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f};
+    testObjectChildNested.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
+    testObjectChildNested.childCount = 0;
 
-	// add the child to the test mesh
-	testObjectChild.children[0] = &testObjectChildNested;
-	testObjectChild.childCount = 1;
-	// fin!------------------------------------------------------------
+    // add the child to the test mesh
+    testObjectChild.children[0] = &testObjectChildNested;
+    testObjectChild.childCount = 1;
+    // fin!------------------------------------------------------------
 
-	//sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
+    // sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
 
-	allMeshes[meshCount++] = &sphereMesh;
-	allMeshes[meshCount++] = &sphereMeshShift;
-	allMeshes[meshCount++] = &cubeMesh;
+    allMeshes[meshCount++] = &sphereMesh;
+    allMeshes[meshCount++] = &sphereMeshShift;
+    allMeshes[meshCount++] = &cubeMesh;
 
-	int sceneObjectsCounter2 = 0;
-	// clone the sceneObject stuff
-	for (int i = 0; i < sceneObjectForRealCount; i++) {
-		struct mesh *originalMesh = sceneObjectsForReal[i]->mesh;
+    int sceneObjectsCounter2 = 0;
+    // clone the sceneObject stuff
+    for (int i = 0; i < sceneObjectForRealCount; i++) {
+        struct mesh *originalMesh = sceneObjectsForReal[i]->mesh;
 
-		// Create a new mesh for the scene
-		struct mesh *newMesh = malloc(sizeof(struct mesh));
+        // Create a new mesh for the scene
+        struct mesh *newMesh = malloc(sizeof(struct mesh));
 
-		// Clone the original mesh into the new mesh
-		cloneMeshToScene(originalMesh, newMesh);
+        // Clone the original mesh into the new mesh
+        cloneMeshToScene(originalMesh, newMesh);
 
-		// Add the new mesh to the scene meshes
-		sceneObjects[sceneObjectsCounter2] = newMesh;
+        // Add the new mesh to the scene meshes
+        sceneObjects[sceneObjectsCounter2] = newMesh;
 
-		sceneObjectsCounter2++;
+        sceneObjectsCounter2++;
 
-		printf("%i childcount", sceneObjectsForReal[i]->childCount);
-		
-		// need to handle this better
-		for (int j = 0; j < sceneObjectsForReal[i]->childCount; j++) {
-			struct mesh *originalMesh2 = sceneObjectsForReal[i]->children[j]->mesh;
-			struct mesh *newMesh2 = malloc(sizeof(struct mesh));
+        printf("%i childcount", sceneObjectsForReal[i]->childCount);
 
-			// Clone the original mesh into the new mesh
-			cloneMeshToScene(originalMesh2, newMesh2);
+        // need to handle this better
+        for (int j = 0; j < sceneObjectsForReal[i]->childCount; j++) {
+            struct mesh *originalMesh2 = sceneObjectsForReal[i]->children[j]->mesh;
+            struct mesh *newMesh2 = malloc(sizeof(struct mesh));
 
-			// Add the new mesh to the scene meshes
-			sceneObjects[sceneObjectsCounter2] = newMesh2;
+            // Clone the original mesh into the new mesh
+            cloneMeshToScene(originalMesh2, newMesh2);
 
-			sceneObjectsCounter2++;
+            // Add the new mesh to the scene meshes
+            sceneObjects[sceneObjectsCounter2] = newMesh2;
 
-			for (int k = 0; k < sceneObjectsForReal[i]->children[j]->childCount; k++) {
-				struct mesh *originalMesh3 = sceneObjectsForReal[i]->children[j]->children[k]->mesh;
-				struct mesh *newMesh3 = malloc(sizeof(struct mesh));
+            sceneObjectsCounter2++;
 
-				// Clone the original mesh into the new mesh
-				cloneMeshToScene(originalMesh3, newMesh3);
+            for (int k = 0; k < sceneObjectsForReal[i]->children[j]->childCount; k++) {
+                struct mesh *originalMesh3 = sceneObjectsForReal[i]->children[j]->children[k]->mesh;
+                struct mesh *newMesh3 = malloc(sizeof(struct mesh));
 
-				// Add the new mesh to the scene meshes
-				sceneObjects[sceneObjectsCounter2] = newMesh3;
+                // Clone the original mesh into the new mesh
+                cloneMeshToScene(originalMesh3, newMesh3);
 
-				sceneObjectsCounter2++;
-			}
-		}
-	}
+                // Add the new mesh to the scene meshes
+                sceneObjects[sceneObjectsCounter2] = newMesh3;
 
-	int delta = 0;
+                sceneObjectsCounter2++;
+            }
+        }
+    }
 
-	while (!finishTheFunk) {
-		startTicks = SDL_GetTicks();
+    int delta = 0;
 
-		SDL_Event event;
+    while (!finishTheFunk) {
+        startTicks = SDL_GetTicks();
 
-		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_QUIT) {
-				finishTheFunk = 1;
-			}
+        SDL_Event event;
 
-			if (event.type == SDL_MOUSEMOTION) {
-				int mouseX = event.motion.x;
-				int mouseY = event.motion.y;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                finishTheFunk = 1;
+            }
 
-				if (mouseHandler.isDown) {
-					camera.position.x = (float)(mouseHandler.startX - mouseX) * 0.003;
-					camera.position.y = (float)(mouseHandler.startY - mouseY) * 0.003;
+            if (event.type == SDL_MOUSEMOTION) {
+                int mouseX = event.motion.x;
+                int mouseY = event.motion.y;
+
+                if (mouseHandler.isDown) {
+                    camera.position.x = (float)(mouseHandler.startX - mouseX) * 0.003;
+                    camera.position.y = (float)(mouseHandler.startY - mouseY) * 0.003;
 					//camera.rotation.x = (float)(mouseHandler.startX - mouseX) * 0.01;
 				}
 			}
 
-			//mouseHandler
-			// handle the mouse down
-			if (event.type == SDL_MOUSEBUTTONDOWN) {
-				if (event.button.button == SDL_BUTTON_LEFT) {
-					mouseHandler.startX = event.button.x;
-					mouseHandler.startY = event.button.y;
-					mouseHandler.isDown = true;
-				}
-			}
+            // mouseHandler
+            //  handle the mouse down
+            if (event.type == SDL_MOUSEBUTTONDOWN) {
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    mouseHandler.startX = event.button.x;
+                    mouseHandler.startY = event.button.y;
+                    mouseHandler.isDown = true;
+                }
+            }
 
-			if (event.type == SDL_MOUSEBUTTONUP) {
-				if (event.button.button == SDL_BUTTON_LEFT) {
-					mouseHandler.isDown = false;
-				}
-			}
-		}
+            if (event.type == SDL_MOUSEBUTTONUP) {
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    mouseHandler.isDown = false;
+                }
+            }
+        }
 
-		SDL_FillRect(surface, NULL, 0);
+        SDL_FillRect(surface, NULL, 0);
 
-		int sceneObjectsCounter = 0;
+        int sceneObjectsCounter = 0;
 
-		// attempt to render the scene meshes ----------------------------------
-		for (int i = 0; i < sceneObjectForRealCount; i++) {
-			struct Vector3 cumulativeRotation[500] = { { .x = 0, .y = 0, .z = 0 } };
-			struct Vector3 cumulativeTransform[500] = { { .x = 0, .y = 0, .z = 0 } };
-			recurseChildren(delta* 2, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation, cumulativeTransform, 1);
-		}
+        // attempt to render the scene meshes ----------------------------------
+        for (int i = 0; i < sceneObjectForRealCount; i++) {
+            struct Vector3 cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
+            struct Vector3 cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
+            recurseChildren(delta * 2, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation,
+                            cumulativeTransform, 1);
+        }
 
-		SDL_LockSurface(surface);
+        SDL_LockSurface(surface);
 
-		char* pixels = surface->pixels;
+        char *pixels = surface->pixels;
 
 		//char title[64];
 		//snprintf(title, sizeof(title), "Mouse Position - X: %f, Y: %f", camera.position.x, camera.position.y);
 
 		//SDL_SetWindowTitle(window, title);
 
-		for (int i = 0; i < sceneObjectsCounter; i++) {
-			draw_scene(pixels, 640, 480, sceneObjects[i], &camera);
-		}
+        for (int i = 0; i < sceneObjectsCounter; i++) {
+            draw_scene(pixels, 640, 480, sceneObjects[i], &camera);
+        }
 
-		SDL_UnlockSurface(surface);
+        SDL_UnlockSurface(surface);
 
-		// copy to window
-		SDL_BlitSurface(surface, NULL, screen, NULL);
-		SDL_UpdateWindowSurface(window);
+        // copy to window
+        SDL_BlitSurface(surface, NULL, screen, NULL);
+        SDL_UpdateWindowSurface(window);
 
-		//SDL_Delay(1000 / 12);
-		float targetFrameTime = 1000 / 24;
+        // SDL_Delay(1000 / 12);
+        float targetFrameTime = 1000 / 24;
 
-		frameTicks = SDL_GetTicks() - startTicks;
-		if (frameTicks < targetFrameTime) {
-			SDL_Delay(targetFrameTime - frameTicks);
-		}
+        frameTicks = SDL_GetTicks() - startTicks;
+        if (frameTicks < targetFrameTime) {
+            SDL_Delay(targetFrameTime - frameTicks);
+        }
 
-		delta++;
-	}
+        delta++;
+    }
 
-	// Free the mesh memory
-	for (int i = 0; i < meshCount; i++) {
-		free(allMeshes[i]->vert);
-		free(allMeshes[i]->face);
-		printf("clear success\n");
-	}
+    // Free the mesh memory
+    for (int i = 0; i < meshCount; i++) {
+        free(allMeshes[i]->vert);
+        free(allMeshes[i]->face);
+        printf("clear success\n");
+    }
 
-	for (int i = 0; i < meshCount; i++) {
-		free(sceneObjects[i]->vert);
-		free(sceneObjects[i]->face);
-		printf("clear success\n");
-	}
+    for (int i = 0; i < meshCount; i++) {
+        free(sceneObjects[i]->vert);
+        free(sceneObjects[i]->face);
+        printf("clear success\n");
+    }
 
-	//free(sphereMeshShift.vert);
-	//free(sphereMeshShift.face);
+    // free(sphereMeshShift.vert);
+    // free(sphereMeshShift.face);
 
-	SDL_Quit();
+    SDL_Quit();
 
-	return 0;
+    return 0;
 }
