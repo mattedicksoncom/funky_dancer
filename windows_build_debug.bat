@@ -1,0 +1,2 @@
+@echo off
+gcc -g -Wall -Wextra -std=c99 -pedantic C:\misc_projects\funky_dancer\funky_dancer.c -ISDL2\include -L.\SDL2\lib -lmingw32 -lSDL2main -lSDL2 -o funky_dancer && "./cv2pdb/cv2pdb" funky_dancer.exe
