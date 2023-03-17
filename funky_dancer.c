@@ -17,8 +17,9 @@ struct MouseHandler {
 };
 
 struct OrthographicCamera3D {
-	struct Vec3f position;
-	struct Vec3f rotation;
+    struct Vec3f position;
+    struct Vec3f rotation;
+    struct Quaternion q_rotation;
 };
 
 struct Vec3f WorldToScreen3D(struct OrthographicCamera3D camera, struct Vec3f worldPoint) {
@@ -367,7 +368,8 @@ int main(int argc, char* argv[]) {
 	struct OrthographicCamera3D camera = {
 		.position = {.x = 0.0, .y = 0.0, .z = 0.0},
 		.rotation = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
-	};
+        .q_rotation = {.w = 0.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f},
+    };
 
 	// generate the mesh before the loop
 	struct mesh sphereMesh;
