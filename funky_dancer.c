@@ -460,118 +460,120 @@ int main(int argc, char *argv[]) {
 		.q_rotation = {.w = 0.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f},
 	};
 
-    // generate the mesh before the loop
-    struct mesh sphereMesh;
-    int subdivisions = 8;
-    generateSphere(0.3, subdivisions, &sphereMesh);
+	// generate the mesh before the loop
+	{
+		struct mesh sphereMesh;
+		int subdivisions = 8;
+		generateSphere(0.3, subdivisions, &sphereMesh);
 
-	struct SceneObject testSphere;
-	testSphere.mesh = &sphereMesh;
+		struct SceneObject testSphere;
+		testSphere.mesh = &sphereMesh;
 
-	testSphere.transform = (struct Transform){
-		.position = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
-		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
-		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
-	};
-	testSphere.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
-	testSphere.childCount = 0;
+		testSphere.transform = (struct Transform) {
+			.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
+			.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
+			.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
+		};
+		testSphere.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
+		testSphere.childCount = 0;
 
-	appProperties.sceneObjectsForReal[appProperties.sceneObjectForRealCount++] = &testSphere;
+		appProperties.sceneObjectsForReal[appProperties.sceneObjectForRealCount++] = &testSphere;
 
-    // test rendering a scene object
-    struct mesh sceneCubeTest;
-    generateCube(1.0, 1.0, 1.0, &sceneCubeTest);
+		// test rendering a scene object
+		struct mesh sceneCubeTest;
+		generateCube(1.0, 1.0, 1.0, &sceneCubeTest);
 
-    struct SceneObject testObject;
-    testObject.mesh = &sceneCubeTest;
+		struct SceneObject testObject;
+		testObject.mesh = &sceneCubeTest;
 
-	trs(&sceneCubeTest,
-	    0.0, 0.5, 0.0,
-	    0, 0, 0,
-	    0.3, 1.0, 0.3);
+		trs(&sceneCubeTest,
+		    0.0, 0.5, 0.0,
+		    0, 0, 0,
+		    0.3, 1.0, 0.3);
 
-	testObject.transform = (struct Transform){
-		.position = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
-		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
-		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
-	};
-    testObject.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
-    testObject.childCount = 0;
+		testObject.transform = (struct Transform) {
+			.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
+			.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
+			.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
+		};
+		testObject.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
+		testObject.childCount = 0;
 
-	appProperties.sceneObjectsForReal[appProperties.sceneObjectForRealCount++] = &testObject;
+		appProperties.sceneObjectsForReal[appProperties.sceneObjectForRealCount++] = &testObject;
 
-    // test adding a child
-    struct mesh sceneCubeChild;
-    generateCube(1.0, 1.0, 1.0, &sceneCubeChild);
+		// test adding a child
+		struct mesh sceneCubeChild;
+		generateCube(1.0, 1.0, 1.0, &sceneCubeChild);
 
-	trs(&sceneCubeChild,
-	    0.5, 0.0, 0.0,
-	    0, 0, 0,
-	    1, 0.3, 0.3);
+		trs(&sceneCubeChild,
+		    0.5, 0.0, 0.0,
+		    0, 0, 0,
+		    1, 0.3, 0.3);
 	
 
-    struct SceneObject testObjectChild;
-    testObjectChild.mesh = &sceneCubeChild;
+		struct SceneObject testObjectChild;
+		testObjectChild.mesh = &sceneCubeChild;
 
-	testObjectChild.transform = (struct Transform){
-		.position = (struct Vector3){.x = 0.0f, .y = 1.0f, .z = 0.0f},
-		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
-		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
-	};
-    testObjectChild.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
-    testObjectChild.childCount = 0;
+		testObjectChild.transform = (struct Transform) {
+			.position = (struct Vector3) { .x = 0.0f, .y = 1.0f, .z = 0.0f },
+			.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
+			.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
+		};
+		testObjectChild.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
+		testObjectChild.childCount = 0;
 
-    // add the child to the test mesh
-    testObject.children[0] = &testObjectChild;
-    testObject.childCount = 1;
+		// add the child to the test mesh
+		testObject.children[0] = &testObjectChild;
+		testObject.childCount = 1;
 
-	// adding a third child WOW!------------------------------------------------------------
-	struct mesh sceneCubeChildNested;
-    generateCube(1.0, 1.0, 1.0, &sceneCubeChildNested);
+		// adding a third child WOW!------------------------------------------------------------
+		struct mesh sceneCubeChildNested;
+		generateCube(1.0, 1.0, 1.0, &sceneCubeChildNested);
 
-	trs(&sceneCubeChildNested,
-	    0.5, 0.0, 0.0,
-	    0, 0, 0,
-	    1, 0.3, 0.3);
+		trs(&sceneCubeChildNested,
+		    0.5, 0.0, 0.0,
+		    0, 0, 0,
+		    1, 0.3, 0.3);
 	
 
-    struct SceneObject testObjectChildNested;
-    testObjectChildNested.mesh = &sceneCubeChildNested;
+		struct SceneObject testObjectChildNested;
+		testObjectChildNested.mesh = &sceneCubeChildNested;
 
-	testObjectChildNested.transform = (struct Transform){
-		.position = (struct Vector3){.x = 1.0f, .y = 0.0f, .z = 0.0f},
-		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
-		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
-	};
-    testObjectChildNested.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
-    testObjectChildNested.childCount = 0;
+		testObjectChildNested.transform = (struct Transform) {
+			.position = (struct Vector3) { .x = 1.0f, .y = 0.0f, .z = 0.0f },
+			.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
+			.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
+		};
+		testObjectChildNested.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
+		testObjectChildNested.childCount = 0;
 
-    // add the child to the test mesh
-    testObjectChild.children[0] = &testObjectChildNested;
-    testObjectChild.childCount = 1;
+		// add the child to the test mesh
+		testObjectChild.children[0] = &testObjectChildNested;
+		testObjectChild.childCount = 1;
 
-	// Add another sphere at the end
-	struct mesh sphereMeshEnd;
-	generateSphere(0.4, 8, &sphereMeshEnd);
+		// Add another sphere at the end
+		struct mesh sphereMeshEnd;
+		generateSphere(0.4, 8, &sphereMeshEnd);
 
-	trs(&sphereMeshEnd,
-	    0.0, 0.0, 0.0,
-	    0, 0, 0,
-	    1, 1, 1);
+		trs(&sphereMeshEnd,
+		    0.0, 0.0, 0.0,
+		    0, 0, 0,
+		    1, 1, 1);
 
-	struct SceneObject sphereObjectEnd;
-	sphereObjectEnd.mesh = &sphereMeshEnd;
+		struct SceneObject sphereObjectEnd;
+		sphereObjectEnd.mesh = &sphereMeshEnd;
 
-	sphereObjectEnd.transform = (struct Transform){
-		.position = (struct Vector3){.x = 1.0f, .y = 0.0f, .z = 0.0f},
-		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
-		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
-	};
-	sphereObjectEnd.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
-	sphereObjectEnd.childCount = 0;
+		sphereObjectEnd.transform = (struct Transform) {
+			.position = (struct Vector3) { .x = 1.0f, .y = 0.0f, .z = 0.0f },
+			.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
+			.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
+		};
+		sphereObjectEnd.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
+		sphereObjectEnd.childCount = 0;
 
-	testObjectChildNested.children[0] = &sphereObjectEnd;
-	testObjectChildNested.childCount = 1;
+		testObjectChildNested.children[0] = &sphereObjectEnd;
+		testObjectChildNested.childCount = 1;
+	}
     // fin!------------------------------------------------------------
 
     // clone the sceneObject stuff
