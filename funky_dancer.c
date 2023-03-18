@@ -8,6 +8,10 @@
 #include "math_stuff.c"
 #include "mesh_generators.c"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 // gcc -Wall -Wextra -std=c99 -pedantic funky_dancer.c -ISDL2\include -L.\SDL2\lib -lmingw32 -lSDL2main -lSDL2 -o funky_dancer
 
 struct MouseHandler {
@@ -334,6 +338,11 @@ void recurseChildren(int delta,
     }
 }
 
+void emscriptenLoop(void *arg) {
+	char *funkyString = "Working SDL2 Emscripten!";
+	printf("%s\n", funkyString);
+}
+
 int main(int argc, char *argv[]) {
     char *funkyString = "Starting the funk!";
     printf("%s\n", funkyString);
@@ -521,6 +530,10 @@ int main(int argc, char *argv[]) {
 
     int delta = 0;
 
+	// use a different loop for emscripten
+#ifdef __EMSCRIPTEN__
+	emscripten_set_main_loop_arg(emscriptenLoop, &camera, 12, 1);
+#else
     while (!finishTheFunk) {
         startTicks = SDL_GetTicks();
 
@@ -600,6 +613,7 @@ int main(int argc, char *argv[]) {
 
         delta++;
     }
+#endif
 
     // Free the mesh memory
     for (int i = 0; i < meshCount; i++) {
