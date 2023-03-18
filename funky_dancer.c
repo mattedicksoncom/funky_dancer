@@ -279,7 +279,10 @@ void recurseChildren(int delta,
                      int transformStackDepth) {
     int sceneObjectsCounter = *sceneObjectsCounter_ptr;
 
-    freeMem(sceneObjects, sceneObjectsCounter);
+#ifdef __EMSCRIPTEN__
+#else
+	freeMem(sceneObjects, sceneObjectsCounter); // add back in! breaks emscripten for some reason
+#endif
 
     testCloneMesh(sceneObjects, sceneObjectsCounter, sceneObjectsForReal->mesh);
 
@@ -338,17 +341,14 @@ void recurseChildren(int delta,
     }
 }
 
-void emscriptenLoop(void *arg) {
-	char *funkyString = "Working SDL2 Emscripten!";
-	printf("%s\n", funkyString);
-}
-
 struct AppProperties {
 	int width;
 	int height;
 	SDL_Window *window;
 	SDL_Surface *screen;
 	SDL_Surface *surface;
+	SDL_Renderer *renderer;
+	SDL_Texture *texture;
 	int delta;
 	struct MouseHandler mouseHandler; // change to a proper set up
 	struct OrthographicCamera3D camera; // change to a proper set up
@@ -358,7 +358,60 @@ struct AppProperties {
 	int meshCount;
 	int sceneMeshCount;
 	int sceneObjectForRealCount;
+	int sceneObjectsCounter2;
 };
+
+void emscriptenLoop(void *arg) {
+	struct AppProperties *appProperties = (struct AppProperties*)arg;
+
+	SDL_SetRenderDrawColor(appProperties->renderer, 0, 0, 0, 255);
+	SDL_RenderClear(appProperties->renderer);
+
+	int sceneObjectsCounter = 0;
+
+	// attempt to render the scene meshes ----------------------------------
+	for (int i = 0; i < appProperties->sceneObjectForRealCount; i++) {
+		struct Vector3 cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
+		struct Vector3 cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
+		recurseChildren(appProperties->delta * 2,
+		                appProperties->sceneObjects,
+		                &sceneObjectsCounter,
+		                appProperties->sceneObjectsForReal[i],
+		                cumulativeRotation,
+		                cumulativeTransform,
+		                1);
+	}
+
+	// use an sdl texture for emscripten
+	if (!appProperties->texture) {
+		appProperties->texture = SDL_CreateTexture(appProperties->renderer,
+		                                           SDL_PIXELFORMAT_RGBX8888,
+		                                           SDL_TEXTUREACCESS_STREAMING,
+		                                           //SDL_TEXTUREACCESS_TARGET,
+		                                           640, 480);
+	}
+
+	//char *pixels;
+	char *pixels = appProperties->surface->pixels;
+	int pitch;
+	SDL_LockTexture(appProperties->texture, NULL, (void **)&pixels, &pitch);
+
+	// work out a better way to clear the texture(eventually may not be need though)
+	for (int i = 0; i < 640 * 480 * 4; ++i) {
+		pixels[i] = 0x00000000;
+	}
+
+	for (int i = 0; i < sceneObjectsCounter; i++) {
+		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera);
+	}
+
+	SDL_UnlockTexture(appProperties->texture);
+
+	SDL_RenderCopy(appProperties->renderer, appProperties->texture, NULL, NULL);
+	SDL_RenderPresent(appProperties->renderer);
+
+	appProperties->delta++;
+}
 
 int main(int argc, char *argv[]) {
     char *funkyString = "Starting the funk!";
@@ -373,7 +426,7 @@ int main(int argc, char *argv[]) {
     // SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
 	SDL_SetWindowOpacity(appProperties.window, 1.0);
 
-	SDL_CreateRenderer(appProperties.window, -1, 0);
+	appProperties.renderer = SDL_CreateRenderer(appProperties.window, -1, 0);
 
 	if (!appProperties.window) {
         SDL_Quit();
@@ -383,6 +436,10 @@ int main(int argc, char *argv[]) {
 	appProperties.screen = SDL_GetWindowSurface(appProperties.window);
 	appProperties.surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBX8888);
 	appProperties.delta = 0;
+
+	appProperties.sceneObjectForRealCount = 0;
+	appProperties.sceneMeshCount = 0;
+	appProperties.sceneObjectsCounter2 = 0;
 
 	appProperties.mouseHandler = (struct MouseHandler){
 		.startX = 0.0,
@@ -424,7 +481,7 @@ int main(int argc, char *argv[]) {
 
     struct mesh *allMeshes[500]; // limit to 500 for now
     int meshCount = 0;
-    struct mesh *sceneObjects[500]; // limit to 500 for now
+    //struct mesh *sceneObjects[500]; // limit to 500 for now
     int sceneMeshCount = 0;
 
     struct SceneObject *sceneObjectsForReal[500]; // limit to 500 for now
@@ -448,7 +505,7 @@ int main(int argc, char *argv[]) {
     testObject.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
     testObject.childCount = 0;
 
-    sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
+	appProperties.sceneObjectsForReal[appProperties.sceneObjectForRealCount++] = &testObject;
 
     // test adding a child
     struct mesh sceneCubeChild;
@@ -503,10 +560,10 @@ int main(int argc, char *argv[]) {
     allMeshes[meshCount++] = &sphereMeshShift;
     allMeshes[meshCount++] = &cubeMesh;
 
-    int sceneObjectsCounter2 = 0;
+    //int sceneObjectsCounter2 = 0;
     // clone the sceneObject stuff
-    for (int i = 0; i < sceneObjectForRealCount; i++) {
-        struct mesh *originalMesh = sceneObjectsForReal[i]->mesh;
+    for (int i = 0; i < appProperties.sceneObjectForRealCount; i++) {
+		struct mesh *originalMesh = appProperties.sceneObjectsForReal[i]->mesh;
 
         // Create a new mesh for the scene
         struct mesh *newMesh = malloc(sizeof(struct mesh));
@@ -515,36 +572,36 @@ int main(int argc, char *argv[]) {
         cloneMeshToScene(originalMesh, newMesh);
 
         // Add the new mesh to the scene meshes
-        sceneObjects[sceneObjectsCounter2] = newMesh;
+		appProperties.sceneObjects[appProperties.sceneObjectsCounter2] = newMesh;
 
-        sceneObjectsCounter2++;
+		appProperties.sceneObjectsCounter2++;
 
-        printf("%i childcount", sceneObjectsForReal[i]->childCount);
+		printf("%i childcount", appProperties.sceneObjectsForReal[i]->childCount);
 
         // need to handle this better
-        for (int j = 0; j < sceneObjectsForReal[i]->childCount; j++) {
-            struct mesh *originalMesh2 = sceneObjectsForReal[i]->children[j]->mesh;
+		for (int j = 0; j < appProperties.sceneObjectsForReal[i]->childCount; j++) {
+			struct mesh *originalMesh2 = appProperties.sceneObjectsForReal[i]->children[j]->mesh;
             struct mesh *newMesh2 = malloc(sizeof(struct mesh));
 
             // Clone the original mesh into the new mesh
             cloneMeshToScene(originalMesh2, newMesh2);
 
             // Add the new mesh to the scene meshes
-            sceneObjects[sceneObjectsCounter2] = newMesh2;
+			appProperties.sceneObjects[appProperties.sceneObjectsCounter2] = newMesh2;
 
-            sceneObjectsCounter2++;
+			appProperties.sceneObjectsCounter2++;
 
-            for (int k = 0; k < sceneObjectsForReal[i]->children[j]->childCount; k++) {
-                struct mesh *originalMesh3 = sceneObjectsForReal[i]->children[j]->children[k]->mesh;
+			for (int k = 0; k < appProperties.sceneObjectsForReal[i]->children[j]->childCount; k++) {
+				struct mesh *originalMesh3 = appProperties.sceneObjectsForReal[i]->children[j]->children[k]->mesh;
                 struct mesh *newMesh3 = malloc(sizeof(struct mesh));
 
                 // Clone the original mesh into the new mesh
                 cloneMeshToScene(originalMesh3, newMesh3);
 
                 // Add the new mesh to the scene meshes
-                sceneObjects[sceneObjectsCounter2] = newMesh3;
+				appProperties.sceneObjects[appProperties.sceneObjectsCounter2] = newMesh3;
 
-                sceneObjectsCounter2++;
+				appProperties.sceneObjectsCounter2++;
             }
         }
     }
@@ -553,7 +610,7 @@ int main(int argc, char *argv[]) {
 
 	// use a different loop for emscripten
 #ifdef __EMSCRIPTEN__
-	emscripten_set_main_loop_arg(emscriptenLoop, &camera, 12, 1);
+	emscripten_set_main_loop_arg(emscriptenLoop, &appProperties, 24, 1);
 #else
     while (!finishTheFunk) {
         startTicks = SDL_GetTicks();
@@ -598,10 +655,10 @@ int main(int argc, char *argv[]) {
         int sceneObjectsCounter = 0;
 
         // attempt to render the scene meshes ----------------------------------
-        for (int i = 0; i < sceneObjectForRealCount; i++) {
+        for (int i = 0; i < appProperties.sceneObjectForRealCount; i++) {
             struct Vector3 cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
             struct Vector3 cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
-			recurseChildren(appProperties.delta * 2, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation,
+			recurseChildren(appProperties.delta * 2, appProperties.sceneObjects, &sceneObjectsCounter, appProperties.sceneObjectsForReal[i], cumulativeRotation,
                             cumulativeTransform, 1);
         }
 
@@ -615,7 +672,7 @@ int main(int argc, char *argv[]) {
 		//SDL_SetWindowTitle(window, title);
 
         for (int i = 0; i < sceneObjectsCounter; i++) {
-			draw_scene(pixels, 640, 480, sceneObjects[i], &appProperties.camera);
+			draw_scene(pixels, 640, 480, appProperties.sceneObjects[i], &appProperties.camera);
         }
 
 		SDL_UnlockSurface(appProperties.surface);
@@ -644,8 +701,8 @@ int main(int argc, char *argv[]) {
     }
 
     for (int i = 0; i < meshCount; i++) {
-        free(sceneObjects[i]->vert);
-        free(sceneObjects[i]->face);
+        free(appProperties.sceneObjects[i]->vert);
+        free(appProperties.sceneObjects[i]->face);
         printf("clear success\n");
     }
 
