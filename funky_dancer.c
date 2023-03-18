@@ -359,7 +359,39 @@ struct AppProperties {
 	int sceneMeshCount;
 	int sceneObjectForRealCount;
 	int sceneObjectsCounter2;
+	int frameTicks;
+	int startTicks;
+	int finishTheFunk;
 };
+
+void interactionHandler(SDL_Event *event, struct AppProperties *appProperties) {
+	if (event->type == SDL_MOUSEMOTION) {
+		int mouseX = event->motion.x;
+		int mouseY = event->motion.y;
+
+		if (appProperties->mouseHandler.isDown) {
+			appProperties->camera.position.x = (float)(appProperties->mouseHandler.startX - mouseX) * 0.003;
+			appProperties->camera.position.y = (float)(appProperties->mouseHandler.startY - mouseY) * 0.003;
+			//camera.rotation.x = (float)(mouseHandler.startX - mouseX) * 0.01;
+		}
+	}
+
+	// mouseHandler
+	//  handle the mouse down
+	if (event->type == SDL_MOUSEBUTTONDOWN) {
+		if (event->button.button == SDL_BUTTON_LEFT) {
+			appProperties->mouseHandler.startX = event->button.x;
+			appProperties->mouseHandler.startY = event->button.y;
+			appProperties->mouseHandler.isDown = true;
+		}
+	}
+
+	if (event->type == SDL_MOUSEBUTTONUP) {
+		if (event->button.button == SDL_BUTTON_LEFT) {
+			appProperties->mouseHandler.isDown = false;
+		}
+	}
+}
 
 void emscriptenLoop(void *arg) {
 	struct AppProperties *appProperties = (struct AppProperties*)arg;
@@ -372,32 +404,7 @@ void emscriptenLoop(void *arg) {
 	SDL_Event event;
 
 	while (SDL_PollEvent(&event)) {
-		if (event.type == SDL_MOUSEMOTION) {
-			int mouseX = event.motion.x;
-			int mouseY = event.motion.y;
-
-			if (appProperties->mouseHandler.isDown) {
-				appProperties->camera.position.x = (float)(appProperties->mouseHandler.startX - mouseX) * 0.003;
-				appProperties->camera.position.y = (float)(appProperties->mouseHandler.startY - mouseY) * 0.003;
-				//camera.rotation.x = (float)(mouseHandler.startX - mouseX) * 0.01;
-			}
-		}
-
-		// mouseHandler
-		//  handle the mouse down
-		if (event.type == SDL_MOUSEBUTTONDOWN) {
-			if (event.button.button == SDL_BUTTON_LEFT) {
-				appProperties->mouseHandler.startX = event.button.x;
-				appProperties->mouseHandler.startY = event.button.y;
-				appProperties->mouseHandler.isDown = true;
-			}
-		}
-
-		if (event.type == SDL_MOUSEBUTTONUP) {
-			if (event.button.button == SDL_BUTTON_LEFT) {
-				appProperties->mouseHandler.isDown = false;
-			}
-		}
+		interactionHandler(&event, appProperties);
 	}
 
 	// attempt to render the scene meshes ----------------------------------
@@ -444,6 +451,63 @@ void emscriptenLoop(void *arg) {
 	appProperties->delta++;
 }
 
+void nativeLoop(void *arg) {
+	struct AppProperties *appProperties = (struct AppProperties*)arg;
+
+	appProperties->startTicks = SDL_GetTicks();
+
+	SDL_Event event;
+
+	while (SDL_PollEvent(&event)) {
+		if (event.type == SDL_QUIT) {
+			appProperties->finishTheFunk = 1;
+		}
+
+		interactionHandler(&event, appProperties);
+	}
+
+	SDL_FillRect(appProperties->surface, NULL, 0);
+
+	int sceneObjectsCounter = 0;
+
+	// attempt to render the scene meshes ----------------------------------
+	for (int i = 0; i < appProperties->sceneObjectForRealCount; i++) {
+		struct Vector3 cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
+		struct Vector3 cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
+		recurseChildren(appProperties->delta * 2, appProperties->sceneObjects, &sceneObjectsCounter, appProperties->sceneObjectsForReal[i], cumulativeRotation,
+		                cumulativeTransform, 1);
+	}
+
+	SDL_LockSurface(appProperties->surface);
+
+	char *pixels = appProperties->surface->pixels;
+
+	//char title[64];
+	//snprintf(title, sizeof(title), "Mouse Position - X: %f, Y: %f", camera.position.x, camera.position.y);
+
+	//SDL_SetWindowTitle(window, title);
+
+	for (int i = 0; i < sceneObjectsCounter; i++) {
+		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera);
+	}
+
+	SDL_UnlockSurface(appProperties->surface);
+
+	// copy to window
+	SDL_BlitSurface(appProperties->surface, NULL, appProperties->screen, NULL);
+	SDL_UpdateWindowSurface(appProperties->window);
+
+	// SDL_Delay(1000 / 12);
+	float targetFrameTime = 1000 / 24;
+
+	appProperties->frameTicks = SDL_GetTicks() - appProperties->startTicks;
+	if (appProperties->frameTicks < targetFrameTime) {
+		SDL_Delay(targetFrameTime - appProperties->frameTicks);
+	}
+
+	appProperties->delta++;
+}
+
 int main(int argc, char *argv[]) {
     char *funkyString = "Starting the funk!";
     printf("%s\n", funkyString);
@@ -471,6 +535,10 @@ int main(int argc, char *argv[]) {
 	appProperties.sceneObjectForRealCount = 0;
 	appProperties.sceneMeshCount = 0;
 	appProperties.sceneObjectsCounter2 = 0;
+
+	appProperties.frameTicks = 0;
+	appProperties.startTicks = 0;
+	appProperties.finishTheFunk = 0;
 
 	appProperties.mouseHandler = (struct MouseHandler){
 		.startX = 0.0,
@@ -643,84 +711,8 @@ int main(int argc, char *argv[]) {
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop_arg(emscriptenLoop, &appProperties, -1, 1);
 #else
-    while (!finishTheFunk) {
-        startTicks = SDL_GetTicks();
-
-        SDL_Event event;
-
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                finishTheFunk = 1;
-            }
-
-            if (event.type == SDL_MOUSEMOTION) {
-                int mouseX = event.motion.x;
-                int mouseY = event.motion.y;
-
-				if (appProperties.mouseHandler.isDown) {
-					appProperties.camera.position.x = (float)(appProperties.mouseHandler.startX - mouseX) * 0.003;
-					appProperties.camera.position.y = (float)(appProperties.mouseHandler.startY - mouseY) * 0.003;
-					//camera.rotation.x = (float)(mouseHandler.startX - mouseX) * 0.01;
-				}
-			}
-
-            // mouseHandler
-            //  handle the mouse down
-            if (event.type == SDL_MOUSEBUTTONDOWN) {
-                if (event.button.button == SDL_BUTTON_LEFT) {
-					appProperties.mouseHandler.startX = event.button.x;
-					appProperties.mouseHandler.startY = event.button.y;
-					appProperties.mouseHandler.isDown = true;
-                }
-            }
-
-            if (event.type == SDL_MOUSEBUTTONUP) {
-                if (event.button.button == SDL_BUTTON_LEFT) {
-					appProperties.mouseHandler.isDown = false;
-                }
-            }
-        }
-
-		SDL_FillRect(appProperties.surface, NULL, 0);
-
-        int sceneObjectsCounter = 0;
-
-        // attempt to render the scene meshes ----------------------------------
-        for (int i = 0; i < appProperties.sceneObjectForRealCount; i++) {
-            struct Vector3 cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
-            struct Vector3 cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
-			recurseChildren(appProperties.delta * 2, appProperties.sceneObjects, &sceneObjectsCounter, appProperties.sceneObjectsForReal[i], cumulativeRotation,
-                            cumulativeTransform, 1);
-        }
-
-		SDL_LockSurface(appProperties.surface);
-
-		char *pixels = appProperties.surface->pixels;
-
-		//char title[64];
-		//snprintf(title, sizeof(title), "Mouse Position - X: %f, Y: %f", camera.position.x, camera.position.y);
-
-		//SDL_SetWindowTitle(window, title);
-
-        for (int i = 0; i < sceneObjectsCounter; i++) {
-			draw_scene(pixels, 640, 480, appProperties.sceneObjects[i], &appProperties.camera);
-        }
-
-		SDL_UnlockSurface(appProperties.surface);
-
-        // copy to window
-		SDL_BlitSurface(appProperties.surface, NULL, appProperties.screen, NULL);
-		SDL_UpdateWindowSurface(appProperties.window);
-
-        // SDL_Delay(1000 / 12);
-        float targetFrameTime = 1000 / 24;
-
-        frameTicks = SDL_GetTicks() - startTicks;
-        if (frameTicks < targetFrameTime) {
-            SDL_Delay(targetFrameTime - frameTicks);
-        }
-
-		appProperties.delta++;
+    while (!appProperties.finishTheFunk) {
+		nativeLoop(&appProperties);
     }
 #endif
 
