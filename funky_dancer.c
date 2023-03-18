@@ -6,13 +6,12 @@
 #include "common_structs.c"
 #include "mat4.c"
 #include "math_stuff.c"
+#include "pixel_drawing.c"
 #include "mesh_generators.c"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-
-// gcc -Wall -Wextra -std=c99 -pedantic funky_dancer.c -ISDL2\include -L.\SDL2\lib -lmingw32 -lSDL2main -lSDL2 -o funky_dancer
 
 struct MouseHandler {
     int startX;
@@ -52,117 +51,8 @@ struct Vec3f WorldToScreen3D(struct OrthographicCamera3D camera, struct Vec3f wo
     return screenPoint;
 }
 
-void trs(struct mesh *outMesh,
-         float tx, float ty, float tz,
-         float rx, float ry, float rz,
-         float sx, float sy, float sz) {
-	// Translation matrix
-	float t[16] = {
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		tx, ty, tz, 1.0f
-	};
-
-    // Rotation matrix
-    float c, s, len;
-    float axis[3] = {rx, ry, rz};
-    len = sqrtf(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
-    if (len != 0.0f) {
-        c = cosf(M_PI / 180.0f * len);
-        s = sinf(M_PI / 180.0f * len);
-        axis[0] /= len;
-        axis[1] /= len;
-        axis[2] /= len;
-    } else {
-        c = 1.0f;
-        s = 0.0f;
-    }
-	float t2[16] = {
-		axis[0]*axis[0]*(1.0f-c) + c, axis[0]*axis[1]*(1.0f-c)-axis[2]*s, axis[0]*axis[2]*(1.0f-c) + axis[1]*s, 0.0f,
-		axis[0]*axis[1]*(1.0f-c) + axis[2]*s, axis[1]*axis[1]*(1.0f-c) + c, axis[1]*axis[2]*(1.0f-c)-axis[0]*s, 0.0f,
-		axis[0]*axis[2]*(1.0f-c)-axis[1]*s, axis[1]*axis[2]*(1.0f-c) + axis[0]*s, axis[2]*axis[2]*(1.0f-c) + c, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
-	};
-
-    // Scale matrix
-	float s3[16] = {
-		sx, 0.0f, 0.0f, 0.0f,
-		0.0f, sy, 0.0f, 0.0f,
-		0.0f, 0.0f, sz, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
-	};
-
-    // Transform each vertex
-    for (int i = 0; i < outMesh->vertCount; i++) {
-        // Apply translation, rotation, and scaling to vertex
-        float v[4] = {outMesh->vert[i * 3], outMesh->vert[i * 3 + 1], outMesh->vert[i * 3 + 2], 1.0f};
-        float v2[4];
-        multiplyMatrixVector(t, v, v2);
-        multiplyMatrixVector(t2, v2, v);
-        multiplyMatrixVector(s3, v, v2);
-        // Store transformed vertex back into mesh
-        outMesh->vert[i * 3] = v2[0];
-        outMesh->vert[i * 3 + 1] = v2[1];
-        outMesh->vert[i * 3 + 2] = v2[2];
-    }
-}
-
-// void line(int x0, int y0, int x1, int y1, SDL_Surface* surface, unsigned int color) { 
-void line(int x0, int y0, int x1, int y1, char *pixels, unsigned int color) {
-    // pitch: the length of a row of pixels in bytes (read-only)
-    // const int pitch = surface->pitch;
-    // char* pixels = surface->pixels;
-    // need a bounds check
-    // int pitch = sizeof(char) * 2048;
-	int pitch = sizeof(char) * 640 * 4; // there are so many questions here, I put the description above and yet I keep this odd bit of code. Why?
-
-    bool steep = false;
-    if (abs(x0 - x1) < abs(y0 - y1)) {
-        swap(&x0, &y0);
-        swap(&x1, &y1);
-        steep = true;
-    }
-    if (x0 > x1) {
-        swap(&x0, &x1);
-        swap(&y0, &y1);
-    }
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-    int derror2 = abs(dy) * 2;
-    int error2 = 0;
-    int y = y0;
-    for (int x = x0; x <= x1; x++) {
-        if (steep) {
-            // image.set(y, x, color);
-            if (x >= 0 && x < 640 && y >= 0 && y < 480) {
-                unsigned int *row = (unsigned int *)(pixels + pitch * y);
-                row[x] = color;
-            }
-        } else {
-            // image.set(x, y, color);
-            if (x >= 0 && x < 480 && y >= 0 && y < 640) {
-                unsigned int *row = (unsigned int *)(pixels + pitch * x);
-                row[y] = color;
-            }
-        }
-        error2 += derror2;
-        if (error2 > dx) {
-            y += (y1 > y0 ? 1 : -1);
-            error2 -= dx * 2;
-        }
-    }
-}
-
-//void draw_scene(SDL_Surface* surface, int width, int height, struct mesh *sphereMesh_ptr) {
 void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr, struct OrthographicCamera3D *camera_ptr) {
     struct mesh sphereMesh = *sphereMesh_ptr;
-
-    // char title[64];
-	//snprintf(title, sizeof(title), "Mouse Position - X: %f, Y: %f", camera_ptr->position.x, camera_ptr->position.y);
-    // SDL_SetWindowTitle(window, title);
-
-    // int pitch = surface->pitch;
 
     // draw the mesh
     for (int i = 0; i < sphereMesh.faceCount; i++) {
@@ -185,13 +75,6 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 			};
 
             // fix this!!!
-            // int x0 = (v0.x + 1.) * 0.5 * height / 2. + (0.25 * height);
-            // int y0 = (v0.y + 1.) * 0.5 * width / 2. + (0.25 * width);
-            // int x1 = (v1.x + 1.) * 0.5 * height / 2. + (0.25 * height);
-            // int y1 = (v1.y + 1.) * 0.5 * width / 2. + (0.25 * width);
-
-            // line(x0, y0, x1, y1, pixels, 0x2299ff00);
-
             struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
             struct Vec3f screenPoint_2 = WorldToScreen3D(*camera_ptr, v1);
 
@@ -352,7 +235,6 @@ struct AppProperties {
 	int delta;
 	struct MouseHandler mouseHandler; // change to a proper set up
 	struct OrthographicCamera3D camera; // change to a proper set up
-	struct mesh *allMeshes[500];
 	struct mesh *sceneObjects[500];
 	struct SceneObject *sceneObjectsForReal[500];
 	int meshCount;
@@ -482,11 +364,6 @@ void nativeLoop(void *arg) {
 
 	char *pixels = appProperties->surface->pixels;
 
-	//char title[64];
-	//snprintf(title, sizeof(title), "Mouse Position - X: %f, Y: %f", camera.position.x, camera.position.y);
-
-	//SDL_SetWindowTitle(window, title);
-
 	for (int i = 0; i < sceneObjectsCounter; i++) {
 		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera);
 	}
@@ -514,14 +391,21 @@ int main(int argc, char *argv[]) {
 
     Uint32 startTicks, frameTicks;
 
-	struct AppProperties appProperties = { .width = 640, .height = 480 };
-	appProperties.window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
+	struct AppProperties appProperties = { 
+		.width = 640, 
+		.height = 480,
+		.window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0),
+		.renderer = SDL_CreateRenderer(appProperties.window, -1, 0),
+		.delta = 0,
+		.sceneObjectForRealCount = 0,
+		.sceneMeshCount = 0,
+		.sceneObjectsCounter2 = 0,
+		.frameTicks = 0,
+		.startTicks = 0,
+		.finishTheFunk = 0
+	};
 
-    //SDL_Window *window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
-    // SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
 	SDL_SetWindowOpacity(appProperties.window, 1.0);
-
-	appProperties.renderer = SDL_CreateRenderer(appProperties.window, -1, 0);
 
 	if (!appProperties.window) {
         SDL_Quit();
@@ -530,16 +414,7 @@ int main(int argc, char *argv[]) {
 
 	appProperties.screen = SDL_GetWindowSurface(appProperties.window);
 	appProperties.surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBX8888);
-	appProperties.delta = 0;
-
-	appProperties.sceneObjectForRealCount = 0;
-	appProperties.sceneMeshCount = 0;
-	appProperties.sceneObjectsCounter2 = 0;
-
-	appProperties.frameTicks = 0;
-	appProperties.startTicks = 0;
-	appProperties.finishTheFunk = 0;
-
+	
 	appProperties.mouseHandler = (struct MouseHandler){
 		.startX = 0.0,
 		.startY = 0.0,
@@ -552,8 +427,6 @@ int main(int argc, char *argv[]) {
 		.q_rotation = {.w = 0.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f},
 	};
 
-    int finishTheFunk = 0;
-
     // generate the mesh before the loop
     struct mesh sphereMesh;
     int subdivisions = 10;
@@ -563,28 +436,9 @@ int main(int argc, char *argv[]) {
 	    0, 0, 0,
 	    0.5, 0.5, 1);
 
-    struct mesh sphereMeshShift;
-    generateSphere(0.2, 5, &sphereMeshShift);
-	trs(&sphereMeshShift,
-	    1.5, 0, 0,
-	    0, 0, 0,
-	    1, 1, 1);
-
-    struct mesh cubeMesh;
-    generateCube(0.8, 0.5, 0.7, &cubeMesh);
-	trs(&cubeMesh,
-	    2.0, 0, 0,
-	    0, 0, 0,
-	    1, 1, 1);
-
-
-    struct mesh *allMeshes[500]; // limit to 500 for now
     int meshCount = 0;
     //struct mesh *sceneObjects[500]; // limit to 500 for now
     int sceneMeshCount = 0;
-
-    struct SceneObject *sceneObjectsForReal[500]; // limit to 500 for now
-    int sceneObjectForRealCount = 0;
 
     // test rendering a scene object
     struct mesh sceneCubeTest;
@@ -598,9 +452,11 @@ int main(int argc, char *argv[]) {
 	    0, 0, 0,
 	    0.3, 1.0, 0.3);
 
-    testObject.transform.position = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
-    testObject.transform.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
-    testObject.transform.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f};
+	testObject.transform = (struct Transform){
+		.position = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
+		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
+		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
+	};
     testObject.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
     testObject.childCount = 0;
 
@@ -619,9 +475,11 @@ int main(int argc, char *argv[]) {
     struct SceneObject testObjectChild;
     testObjectChild.mesh = &sceneCubeChild;
 
-    testObjectChild.transform.position = (struct Vector3){.x = 0.0f, .y = 1.0f, .z = 0.0f};
-    testObjectChild.transform.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
-    testObjectChild.transform.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f};
+	testObjectChild.transform = (struct Transform){
+		.position = (struct Vector3){.x = 0.0f, .y = 1.0f, .z = 0.0f},
+		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
+		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
+	};
     testObjectChild.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
     testObjectChild.childCount = 0;
 
@@ -642,9 +500,11 @@ int main(int argc, char *argv[]) {
     struct SceneObject testObjectChildNested;
     testObjectChildNested.mesh = &sceneCubeChildNested;
 
-    testObjectChildNested.transform.position = (struct Vector3){.x = 1.0f, .y = 0.0f, .z = 0.0f};
-    testObjectChildNested.transform.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f};
-    testObjectChildNested.transform.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f};
+	testObjectChildNested.transform = (struct Transform){
+		.position = (struct Vector3){.x = 1.0f, .y = 0.0f, .z = 0.0f},
+		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
+		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
+	};
     testObjectChildNested.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
     testObjectChildNested.childCount = 0;
 
@@ -653,13 +513,6 @@ int main(int argc, char *argv[]) {
     testObjectChild.childCount = 1;
     // fin!------------------------------------------------------------
 
-    // sceneObjectsForReal[sceneObjectForRealCount++] = &testObject;
-
-    allMeshes[meshCount++] = &sphereMesh;
-    allMeshes[meshCount++] = &sphereMeshShift;
-    allMeshes[meshCount++] = &cubeMesh;
-
-    //int sceneObjectsCounter2 = 0;
     // clone the sceneObject stuff
     for (int i = 0; i < appProperties.sceneObjectForRealCount; i++) {
 		struct mesh *originalMesh = appProperties.sceneObjectsForReal[i]->mesh;
@@ -715,13 +568,6 @@ int main(int argc, char *argv[]) {
 		nativeLoop(&appProperties);
     }
 #endif
-
-    // Free the mesh memory
-    for (int i = 0; i < meshCount; i++) {
-        free(allMeshes[i]->vert);
-        free(allMeshes[i]->face);
-        printf("clear success\n");
-    }
 
     for (int i = 0; i < meshCount; i++) {
         free(appProperties.sceneObjects[i]->vert);

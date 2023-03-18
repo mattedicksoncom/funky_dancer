@@ -67,3 +67,59 @@ struct Mat4 QuaternionToMatrix(struct Quaternion q) {
 
     return result;
 }
+
+void trs(struct mesh *outMesh,
+         float tx, float ty, float tz,
+         float rx, float ry, float rz,
+         float sx, float sy, float sz) {
+	// Translation matrix
+	float t[16] = {
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		tx, ty, tz, 1.0f
+	};
+
+	// Rotation matrix
+	float c, s, len;
+	float axis[3] = {rx, ry, rz};
+	len = sqrtf(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+	if (len != 0.0f) {
+		c = cosf(M_PI / 180.0f * len);
+		s = sinf(M_PI / 180.0f * len);
+		axis[0] /= len;
+		axis[1] /= len;
+		axis[2] /= len;
+	} else {
+		c = 1.0f;
+		s = 0.0f;
+	}
+	float t2[16] = {
+		axis[0]*axis[0]*(1.0f-c) + c, axis[0]*axis[1]*(1.0f-c)-axis[2]*s, axis[0]*axis[2]*(1.0f-c) + axis[1]*s, 0.0f,
+		axis[0]*axis[1]*(1.0f-c) + axis[2]*s, axis[1]*axis[1]*(1.0f-c) + c, axis[1]*axis[2]*(1.0f-c)-axis[0]*s, 0.0f,
+		axis[0]*axis[2]*(1.0f-c)-axis[1]*s, axis[1]*axis[2]*(1.0f-c) + axis[0]*s, axis[2]*axis[2]*(1.0f-c) + c, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+
+	// Scale matrix
+	float s3[16] = {
+		sx, 0.0f, 0.0f, 0.0f,
+		0.0f, sy, 0.0f, 0.0f,
+		0.0f, 0.0f, sz, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+
+	// Transform each vertex
+	for (int i = 0; i < outMesh->vertCount; i++) {
+		// Apply translation, rotation, and scaling to vertex
+		float v[4] = {outMesh->vert[i * 3], outMesh->vert[i * 3 + 1], outMesh->vert[i * 3 + 2], 1.0f};
+		float v2[4];
+		multiplyMatrixVector(t, v, v2);
+		multiplyMatrixVector(t2, v2, v);
+		multiplyMatrixVector(s3, v, v2);
+		// Store transformed vertex back into mesh
+		outMesh->vert[i * 3] = v2[0];
+		outMesh->vert[i * 3 + 1] = v2[1];
+		outMesh->vert[i * 3 + 2] = v2[2];
+	}
+}
