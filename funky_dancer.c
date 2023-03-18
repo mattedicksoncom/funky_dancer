@@ -343,39 +343,60 @@ void emscriptenLoop(void *arg) {
 	printf("%s\n", funkyString);
 }
 
+struct AppProperties {
+	int width;
+	int height;
+	SDL_Window *window;
+	SDL_Surface *screen;
+	SDL_Surface *surface;
+	int delta;
+	struct MouseHandler mouseHandler; // change to a proper set up
+	struct OrthographicCamera3D camera; // change to a proper set up
+	struct mesh *allMeshes[500];
+	struct mesh *sceneObjects[500];
+	struct SceneObject *sceneObjectsForReal[500];
+	int meshCount;
+	int sceneMeshCount;
+	int sceneObjectForRealCount;
+};
+
 int main(int argc, char *argv[]) {
     char *funkyString = "Starting the funk!";
     printf("%s\n", funkyString);
 
     Uint32 startTicks, frameTicks;
 
-    SDL_Window *window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
+	struct AppProperties appProperties = { .width = 640, .height = 480 };
+	appProperties.window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
+
+    //SDL_Window *window = SDL_CreateWindow("Funky Dancer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
     // SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
-    SDL_SetWindowOpacity(window, 1.0);
+	SDL_SetWindowOpacity(appProperties.window, 1.0);
 
-    SDL_CreateRenderer(window, -1, 0);
+	SDL_CreateRenderer(appProperties.window, -1, 0);
 
-    if (!window) {
+	if (!appProperties.window) {
         SDL_Quit();
         return 1;
     }
 
-    SDL_Surface *screen = SDL_GetWindowSurface(window);
-    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBX8888);
+	appProperties.screen = SDL_GetWindowSurface(appProperties.window);
+	appProperties.surface = SDL_CreateRGBSurfaceWithFormat(0, 640, 480, 32, SDL_PIXELFORMAT_RGBX8888);
+	appProperties.delta = 0;
 
-    int finishTheFunk = 0;
-
-	struct MouseHandler mouseHandler = {
+	appProperties.mouseHandler = (struct MouseHandler){
 		.startX = 0.0,
 		.startY = 0.0,
 		.isDown = false
 	};
 
-    struct OrthographicCamera3D camera = {
-        .position = {.x = 0.0, .y = 0.0, .z = 0.0},
-        .rotation = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
-        .q_rotation = {.w = 0.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f},
-    };
+	appProperties.camera = (struct OrthographicCamera3D){
+		.position = {.x = 0.0, .y = 0.0, .z = 0.0},
+		.rotation = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
+		.q_rotation = {.w = 0.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f},
+	};
+
+    int finishTheFunk = 0;
 
     // generate the mesh before the loop
     struct mesh sphereMesh;
@@ -528,7 +549,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    int delta = 0;
+    //int delta = 0;
 
 	// use a different loop for emscripten
 #ifdef __EMSCRIPTEN__
@@ -548,9 +569,9 @@ int main(int argc, char *argv[]) {
                 int mouseX = event.motion.x;
                 int mouseY = event.motion.y;
 
-                if (mouseHandler.isDown) {
-                    camera.position.x = (float)(mouseHandler.startX - mouseX) * 0.003;
-                    camera.position.y = (float)(mouseHandler.startY - mouseY) * 0.003;
+				if (appProperties.mouseHandler.isDown) {
+					appProperties.camera.position.x = (float)(appProperties.mouseHandler.startX - mouseX) * 0.003;
+					appProperties.camera.position.y = (float)(appProperties.mouseHandler.startY - mouseY) * 0.003;
 					//camera.rotation.x = (float)(mouseHandler.startX - mouseX) * 0.01;
 				}
 			}
@@ -559,20 +580,20 @@ int main(int argc, char *argv[]) {
             //  handle the mouse down
             if (event.type == SDL_MOUSEBUTTONDOWN) {
                 if (event.button.button == SDL_BUTTON_LEFT) {
-                    mouseHandler.startX = event.button.x;
-                    mouseHandler.startY = event.button.y;
-                    mouseHandler.isDown = true;
+					appProperties.mouseHandler.startX = event.button.x;
+					appProperties.mouseHandler.startY = event.button.y;
+					appProperties.mouseHandler.isDown = true;
                 }
             }
 
             if (event.type == SDL_MOUSEBUTTONUP) {
                 if (event.button.button == SDL_BUTTON_LEFT) {
-                    mouseHandler.isDown = false;
+					appProperties.mouseHandler.isDown = false;
                 }
             }
         }
 
-        SDL_FillRect(surface, NULL, 0);
+		SDL_FillRect(appProperties.surface, NULL, 0);
 
         int sceneObjectsCounter = 0;
 
@@ -580,13 +601,13 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < sceneObjectForRealCount; i++) {
             struct Vector3 cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
             struct Vector3 cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
-            recurseChildren(delta * 2, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation,
+			recurseChildren(appProperties.delta * 2, sceneObjects, &sceneObjectsCounter, sceneObjectsForReal[i], cumulativeRotation,
                             cumulativeTransform, 1);
         }
 
-        SDL_LockSurface(surface);
+		SDL_LockSurface(appProperties.surface);
 
-        char *pixels = surface->pixels;
+		char *pixels = appProperties.surface->pixels;
 
 		//char title[64];
 		//snprintf(title, sizeof(title), "Mouse Position - X: %f, Y: %f", camera.position.x, camera.position.y);
@@ -594,14 +615,14 @@ int main(int argc, char *argv[]) {
 		//SDL_SetWindowTitle(window, title);
 
         for (int i = 0; i < sceneObjectsCounter; i++) {
-            draw_scene(pixels, 640, 480, sceneObjects[i], &camera);
+			draw_scene(pixels, 640, 480, sceneObjects[i], &appProperties.camera);
         }
 
-        SDL_UnlockSurface(surface);
+		SDL_UnlockSurface(appProperties.surface);
 
         // copy to window
-        SDL_BlitSurface(surface, NULL, screen, NULL);
-        SDL_UpdateWindowSurface(window);
+		SDL_BlitSurface(appProperties.surface, NULL, appProperties.screen, NULL);
+		SDL_UpdateWindowSurface(appProperties.window);
 
         // SDL_Delay(1000 / 12);
         float targetFrameTime = 1000 / 24;
@@ -611,7 +632,7 @@ int main(int argc, char *argv[]) {
             SDL_Delay(targetFrameTime - frameTicks);
         }
 
-        delta++;
+		appProperties.delta++;
     }
 #endif
 
