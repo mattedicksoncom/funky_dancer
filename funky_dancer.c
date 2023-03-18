@@ -369,6 +369,37 @@ void emscriptenLoop(void *arg) {
 
 	int sceneObjectsCounter = 0;
 
+	SDL_Event event;
+
+	while (SDL_PollEvent(&event)) {
+		if (event.type == SDL_MOUSEMOTION) {
+			int mouseX = event.motion.x;
+			int mouseY = event.motion.y;
+
+			if (appProperties->mouseHandler.isDown) {
+				appProperties->camera.position.x = (float)(appProperties->mouseHandler.startX - mouseX) * 0.003;
+				appProperties->camera.position.y = (float)(appProperties->mouseHandler.startY - mouseY) * 0.003;
+				//camera.rotation.x = (float)(mouseHandler.startX - mouseX) * 0.01;
+			}
+		}
+
+		// mouseHandler
+		//  handle the mouse down
+		if (event.type == SDL_MOUSEBUTTONDOWN) {
+			if (event.button.button == SDL_BUTTON_LEFT) {
+				appProperties->mouseHandler.startX = event.button.x;
+				appProperties->mouseHandler.startY = event.button.y;
+				appProperties->mouseHandler.isDown = true;
+			}
+		}
+
+		if (event.type == SDL_MOUSEBUTTONUP) {
+			if (event.button.button == SDL_BUTTON_LEFT) {
+				appProperties->mouseHandler.isDown = false;
+			}
+		}
+	}
+
 	// attempt to render the scene meshes ----------------------------------
 	for (int i = 0; i < appProperties->sceneObjectForRealCount; i++) {
 		struct Vector3 cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
@@ -610,7 +641,7 @@ int main(int argc, char *argv[]) {
 
 	// use a different loop for emscripten
 #ifdef __EMSCRIPTEN__
-	emscripten_set_main_loop_arg(emscriptenLoop, &appProperties, 24, 1);
+	emscripten_set_main_loop_arg(emscriptenLoop, &appProperties, -1, 1);
 #else
     while (!finishTheFunk) {
         startTicks = SDL_GetTicks();
