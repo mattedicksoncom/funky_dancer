@@ -17,6 +17,9 @@ powershell -Command "tar -xzf ('.\SDL2-devel-' + $env:SDL2_VERSION + '-mingw.tar
 echo move x86_64-w64-mingw32 to SDL2 folder
 powershell -Command "if (-not (Test-Path -Path '.\SDL2')) { New-Item -Path '.\SDL2' -ItemType Directory }"
 powershell -Command "Move-Item -Path ('.\SDL2-' + $env:SDL2_VERSION + '\x86_64-w64-mingw32\*') -Destination '.\SDL2'"
+echo move SDL2.dll to build folder
+powershell -Command "if (-not (Test-Path -Path '.\builds\windows\')) { New-Item -Path '.\builds\windows' -ItemType Directory }"
+powershell -Command "Move-Item -Path ('.\SDL2.dll') -Destination '.\builds\windows\'"
 echo clean up the archives and folders
 powershell -Command "Remove-Item -Path ('.\SDL2-' + $env:SDL2_VERSION + '-win32-x64.zip') -Force"
 powershell -Command "Remove-Item -Path ('.\SDL2-devel-' + $env:SDL2_VERSION + '-mingw.tar.gz') -Force"
