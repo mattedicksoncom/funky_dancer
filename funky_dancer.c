@@ -153,13 +153,15 @@ void testCloneMesh(struct mesh *sceneObjects[], int sceneObjectsCounter, struct 
     sceneObjects[sceneObjectsCounter] = newMesh2;
 }
 
-void recurseChildren(int delta,
-                     struct mesh *sceneObjects[],
-                     int *sceneObjectsCounter_ptr,
-                     struct SceneObject *sceneObjectsForReal,
-                     struct Vector3 transformRotationStack[],
-                     struct Vector3 transformPositionStack[],
-                     int transformStackDepth) {
+void recurseChildren(
+	int delta,
+	struct mesh *sceneObjects[],
+	int *sceneObjectsCounter_ptr,
+	struct SceneObject *sceneObjectsForReal,
+	struct Vector3 transformRotationStack[],
+	struct Vector3 transformPositionStack[],
+	int transformStackDepth
+) {
     int sceneObjectsCounter = *sceneObjectsCounter_ptr;
 
 #ifdef __EMSCRIPTEN__
@@ -222,6 +224,37 @@ void recurseChildren(int delta,
 		                transformPositionStack,
 		                transformStackDepth + 1);
     }
+}
+
+void recurseChildrenSetup(
+	struct mesh *sceneObjects[],
+	int *sceneObjectsCounter_ptr,
+	struct SceneObject *sceneObjectsForReal
+) {
+	int sceneObjectsCounter = *sceneObjectsCounter_ptr;
+
+	struct mesh *originalMesh = sceneObjectsForReal->mesh;
+
+	// Create a new mesh for the scene
+	struct mesh *newMesh = malloc(sizeof(struct mesh));
+
+	// Clone the original mesh into the new mesh
+	cloneMeshToScene(originalMesh, newMesh);
+
+	// Add the new mesh to the scene meshes
+	sceneObjects[sceneObjectsCounter] = newMesh;
+
+	//sceneObjectsCounter2++;
+	iterateCounter(sceneObjectsCounter_ptr);
+
+	// need to handle this better
+	for (int j = 0; j < sceneObjectsForReal->childCount; j++) {
+		recurseChildrenSetup(
+		                sceneObjects,
+		                sceneObjectsCounter_ptr,
+		                sceneObjectsForReal->children[j]
+		);
+	}
 }
 
 struct AppProperties {
@@ -515,50 +548,12 @@ int main(int argc, char *argv[]) {
 
     // clone the sceneObject stuff
     for (int i = 0; i < appProperties.sceneObjectForRealCount; i++) {
-		struct mesh *originalMesh = appProperties.sceneObjectsForReal[i]->mesh;
-
-        // Create a new mesh for the scene
-        struct mesh *newMesh = malloc(sizeof(struct mesh));
-
-        // Clone the original mesh into the new mesh
-        cloneMeshToScene(originalMesh, newMesh);
-
-        // Add the new mesh to the scene meshes
-		appProperties.sceneObjects[appProperties.sceneObjectsCounter2] = newMesh;
-
-		appProperties.sceneObjectsCounter2++;
-
-		printf("%i childcount", appProperties.sceneObjectsForReal[i]->childCount);
-
-        // need to handle this better
-		for (int j = 0; j < appProperties.sceneObjectsForReal[i]->childCount; j++) {
-			struct mesh *originalMesh2 = appProperties.sceneObjectsForReal[i]->children[j]->mesh;
-            struct mesh *newMesh2 = malloc(sizeof(struct mesh));
-
-            // Clone the original mesh into the new mesh
-            cloneMeshToScene(originalMesh2, newMesh2);
-
-            // Add the new mesh to the scene meshes
-			appProperties.sceneObjects[appProperties.sceneObjectsCounter2] = newMesh2;
-
-			appProperties.sceneObjectsCounter2++;
-
-			for (int k = 0; k < appProperties.sceneObjectsForReal[i]->children[j]->childCount; k++) {
-				struct mesh *originalMesh3 = appProperties.sceneObjectsForReal[i]->children[j]->children[k]->mesh;
-                struct mesh *newMesh3 = malloc(sizeof(struct mesh));
-
-                // Clone the original mesh into the new mesh
-                cloneMeshToScene(originalMesh3, newMesh3);
-
-                // Add the new mesh to the scene meshes
-				appProperties.sceneObjects[appProperties.sceneObjectsCounter2] = newMesh3;
-
-				appProperties.sceneObjectsCounter2++;
-            }
-        }
+		recurseChildrenSetup(
+		    appProperties.sceneObjects,
+			&appProperties.sceneObjectsCounter2,
+		    appProperties.sceneObjectsForReal[i]
+		);
     }
-
-    //int delta = 0;
 
 	// use a different loop for emscripten
 #ifdef __EMSCRIPTEN__
