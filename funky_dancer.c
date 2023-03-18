@@ -462,16 +462,21 @@ int main(int argc, char *argv[]) {
 
     // generate the mesh before the loop
     struct mesh sphereMesh;
-    int subdivisions = 10;
-    generateSphere(1.0, subdivisions, &sphereMesh);
-	trs(&sphereMesh,
-	    0, 0, 0,
-	    0, 0, 0,
-	    0.5, 0.5, 1);
+    int subdivisions = 8;
+    generateSphere(0.3, subdivisions, &sphereMesh);
 
-    int meshCount = 0;
-    //struct mesh *sceneObjects[500]; // limit to 500 for now
-    int sceneMeshCount = 0;
+	struct SceneObject testSphere;
+	testSphere.mesh = &sphereMesh;
+
+	testSphere.transform = (struct Transform){
+		.position = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f},
+		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
+		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
+	};
+	testSphere.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
+	testSphere.childCount = 0;
+
+	appProperties.sceneObjectsForReal[appProperties.sceneObjectForRealCount++] = &testSphere;
 
     // test rendering a scene object
     struct mesh sceneCubeTest;
@@ -544,6 +549,29 @@ int main(int argc, char *argv[]) {
     // add the child to the test mesh
     testObjectChild.children[0] = &testObjectChildNested;
     testObjectChild.childCount = 1;
+
+	// Add another sphere at the end
+	struct mesh sphereMeshEnd;
+	generateSphere(0.4, 8, &sphereMeshEnd);
+
+	trs(&sphereMeshEnd,
+	    0.0, 0.0, 0.0,
+	    0, 0, 0,
+	    1, 1, 1);
+
+	struct SceneObject sphereObjectEnd;
+	sphereObjectEnd.mesh = &sphereMeshEnd;
+
+	sphereObjectEnd.transform = (struct Transform){
+		.position = (struct Vector3){.x = 1.0f, .y = 0.0f, .z = 0.0f},
+		.rotation = (struct Quaternion){.w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f},
+		.scale = (struct Vector3){.x = 1.0f, .y = 1.0f, .z = 1.0f},
+	};
+	sphereObjectEnd.attachPosition = (struct Vector3){.x = 0.0f, .y = 0.0f, .z = 0.0f};
+	sphereObjectEnd.childCount = 0;
+
+	testObjectChildNested.children[0] = &sphereObjectEnd;
+	testObjectChildNested.childCount = 1;
     // fin!------------------------------------------------------------
 
     // clone the sceneObject stuff
@@ -564,7 +592,7 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    for (int i = 0; i < meshCount; i++) {
+	for (int i = 0; i < appProperties.sceneObjectsCounter2; i++) {
         free(appProperties.sceneObjects[i]->vert);
         free(appProperties.sceneObjects[i]->face);
         printf("clear success\n");
