@@ -536,7 +536,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	appProperties.camera = (struct OrthographicCamera3D){
-		.position = {.x = 0.0, .y = 0.0, .z = 0.0},
+		.position = {.x = 0.0, .y = 0.0, .z = -20.0},
 		.rotation = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
 		.q_rotation = {.w = 0.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f},
 	};
