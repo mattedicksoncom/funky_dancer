@@ -123,3 +123,40 @@ void trs(struct mesh *outMesh,
 		outMesh->vert[i * 3 + 2] = v2[2];
 	}
 }
+
+void eularRotate(
+	struct mesh *outMesh,
+    float rx,
+	float ry,
+	float rz
+) {
+	float c, s, len;
+	float axis[3] = {rx, ry, rz};
+	len = sqrtf(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+	if (len != 0.0f) {
+		c = cosf(M_PI / 180.0f * len);
+		s = sinf(M_PI / 180.0f * len);
+		axis[0] /= len;
+		axis[1] /= len;
+		axis[2] /= len;
+	} else {
+		c = 1.0f;
+		s = 0.0f;
+	}
+	float rotationMatrix[16] = {
+		axis[0]*axis[0]*(1.0f-c) + c, axis[0]*axis[1]*(1.0f-c)-axis[2]*s, axis[0]*axis[2]*(1.0f-c) + axis[1]*s, 0.0f,
+		axis[0]*axis[1]*(1.0f-c) + axis[2]*s, axis[1]*axis[1]*(1.0f-c) + c, axis[1]*axis[2]*(1.0f-c)-axis[0]*s, 0.0f,
+		axis[0]*axis[2]*(1.0f-c)-axis[1]*s, axis[1]*axis[2]*(1.0f-c) + axis[0]*s, axis[2]*axis[2]*(1.0f-c) + c, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+
+	for (int i = 0; i < outMesh->vertCount; i++) {
+		float v[4] = {outMesh->vert[i * 3], outMesh->vert[i * 3 + 1], outMesh->vert[i * 3 + 2], 1.0f};
+		float v2[4];
+		multiplyMatrixVector(rotationMatrix, v, v2);
+
+		outMesh->vert[i * 3] = v2[0];
+		outMesh->vert[i * 3 + 1] = v2[1];
+		outMesh->vert[i * 3 + 2] = v2[2];
+	}
+}
