@@ -41,10 +41,11 @@ void line(int x0, int y0, int x1, int y1, char *pixels, unsigned int color) {
 	}
 }
 
-void drawTriangle(struct Vec2i *pts, char *pixels, unsigned int color) {
+void drawTriangle(struct Vec3f *pts, char *pixels, float *depthBuffer, unsigned int color) {
 	int imageWidth = 640 - 1;
 	int imageHeight = 480 - 1;
 	int pitch = sizeof(char) * 640 * 4;
+	int width = 640;
 
 	struct Vec2i boundingBoxMin = {imageWidth, imageHeight};
 	struct Vec2i boundingBoxMax = {0, 0};
@@ -58,15 +59,25 @@ void drawTriangle(struct Vec2i *pts, char *pixels, unsigned int color) {
 		boundingBoxMax.y = fmin(clamp.y, fmax(boundingBoxMax.y, pts[i].y));
 	}
 
-	struct Vec2i pixelCoord;
+	struct Vec3f pixelCoord; //convert to vec3
 	for (pixelCoord.x = boundingBoxMin.x; pixelCoord.x <= boundingBoxMax.x; pixelCoord.x++) {
 		for (pixelCoord.y = boundingBoxMin.y; pixelCoord.y <= boundingBoxMax.y; pixelCoord.y++) {
-			struct Vec3f bc_screen = barycentric(pts, pixelCoord);
+			struct Vec3f bc_screen = barycentric(pts[0], pts[1], pts[2], pixelCoord);
 			if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0) {
 				continue;
 			}
-			unsigned int *row = (unsigned int *)(pixels + pitch * pixelCoord.y);
-			row[pixelCoord.x] = color;
+			pixelCoord.z = 0;
+			pixelCoord.z += pts[0].z * bc_screen.x;
+			pixelCoord.z += pts[1].z * bc_screen.y;
+			pixelCoord.z += pts[2].z * bc_screen.z;
+
+			// check the zbuffer
+			if (depthBuffer[(int)pixelCoord.x + (int)pixelCoord.y * width] < pixelCoord.z) {
+				depthBuffer[(int)pixelCoord.x + (int)pixelCoord.y * width] = pixelCoord.z;
+
+				unsigned int *row = (unsigned int *)(pixels + pitch * (int)pixelCoord.y);
+				row[(int)pixelCoord.x] = color;
+			}
 		}
 	}
 }

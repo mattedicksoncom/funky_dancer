@@ -64,13 +64,13 @@ uint32_t multiplyColorByFloat(uint32_t color, float factor) {
 	return newColor;
 }
 
-void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr, struct OrthographicCamera3D *camera_ptr) {
+void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr, struct OrthographicCamera3D *camera_ptr, float *depthBuffer) {
     struct mesh sphereMesh = *sphereMesh_ptr;
 
 	struct Vec3f light_dir = { .x = 0, .y = 0, .z = -1 };
 	for (int i = 0; i < sphereMesh.faceCount; i++) { 
 		//std::vector<int> face = model->face(i); 
-		struct Vec2i screen_coords[3]; 
+		struct Vec3f screen_coords[3]; 
 		struct Vec3f world_coords[3]; 
 		int faceIndex = i * 3;
 
@@ -94,9 +94,10 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 			float screenX0 = (screenPoint_1.x * horiMult) + 320;
 			float screenY0 = (screenPoint_1.y * vertMult) + 240;
 
-			screen_coords[j] = (struct Vec2i){
+			screen_coords[j] = (struct Vec3f){
 				.x = screenX0,
-				.y = screenY0
+				.y = screenY0,
+				.z = screenPoint_1.z
 			};
 			world_coords[j] = v0; 
 		} 
@@ -114,6 +115,7 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 			drawTriangle(
 				screen_coords,
 				pixels,
+				depthBuffer,
 				newColor
 				//0x2299ff55 * intensity
 			);
@@ -419,21 +421,27 @@ void emscriptenLoop(void *arg) {
 	//char *pixels;
 	char *pixels = appProperties->surface->pixels;
 	int pitch;
+	float *depthBuffer = (float *)malloc(640 * 480 * sizeof(float));
 	SDL_LockTexture(appProperties->texture, NULL, (void **)&pixels, &pitch);
 
 	// work out a better way to clear the texture(eventually may not be need though)
 	for (int i = 0; i < 640 * 480 * 4; ++i) {
 		pixels[i] = 0x00000000;
 	}
+	for (int i = 0; i < 640 * 480; ++i) {
+		depthBuffer[i] = 0x00000000;
+	}
 
 	for (int i = 0; i < sceneObjectsCounter; i++) {
-		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera);
+		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, depthBuffer);
 	}
 
 	SDL_UnlockTexture(appProperties->texture);
 
 	SDL_RenderCopy(appProperties->renderer, appProperties->texture, NULL, NULL);
 	SDL_RenderPresent(appProperties->renderer);
+
+	free(depthBuffer);
 
 	appProperties->delta++;
 }
@@ -478,8 +486,9 @@ void nativeLoop(void *arg) {
 
 	char *pixels = appProperties->surface->pixels;
 
+	float depthBuffer[640 * 480] = { 0 };
 	for (int i = 0; i < sceneObjectsCounter; i++) {
-		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera);
+		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, depthBuffer);
 	}
 
 	SDL_UnlockSurface(appProperties->surface);
