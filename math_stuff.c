@@ -5,6 +5,49 @@ void multiplyMatrixVector(float *m, float *v, float *out) {
     out[3] = m[3] * v[0] + m[7] * v[1] + m[11] * v[2] + m[15] * v[3];
 }
 
+struct Vec3f vec3f_CrossProduct(struct Vec3f a, struct Vec3f b) {
+	struct Vec3f result;
+	result.x = a.y * b.z - a.z * b.y;
+	result.y = a.z * b.x - a.x * b.z;
+	result.z = a.x * b.y - a.y * b.x;
+	return result;
+}
+
+float vec3f_dotProduct(struct Vec3f a, struct Vec3f b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+struct Vec3f vec3f_subtract(struct Vec3f a, struct Vec3f b) {
+	struct Vec3f result = {a.x - b.x, a.y - b.y, a.z - b.z};
+	return result;
+}
+
+void vec3f_normalize(struct Vec3f *v) {
+	float length = sqrtf(v->x * v->x + v->y * v->y + v->z * v->z);
+	v->x /= length;
+	v->y /= length;
+	v->z /= length;
+}
+
+struct Vec3f barycentric(struct Vec2i *pts, struct Vec2i pixelCoord) {
+	struct Vec3f barycentricCoords = vec3f_CrossProduct((struct Vec3f){
+	                                                    pts[2].x - pts[0].x,
+	                                                    pts[1].x - pts[0].x,
+	                                                    pts[0].x - pixelCoord.x},
+	(struct Vec3f){pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - pixelCoord.y});
+
+	// check if outside the triangle
+	if (fabs(barycentricCoords.z) < 1) {
+		return (struct Vec3f){-1, 1, 1};
+	}
+
+	return (struct Vec3f){
+		1.0f - (barycentricCoords.x + barycentricCoords.y) / barycentricCoords.z,
+		barycentricCoords.y / barycentricCoords.z,
+		barycentricCoords.x / barycentricCoords.z
+	};
+}
+
 struct Quaternion EulerToQuaternion(struct Vec3f euler) {
     // to radians (other stuff is using radians though so need to convert)
     float pitch = euler.x * M_PI / 180.0f;
