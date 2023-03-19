@@ -11,6 +11,10 @@ struct Vec3f {
 	float z;
 };
 
+struct Vec2i {
+	int x, y;
+};
+
 void swap(int *xp, int *yp) {
 	int temp = *xp;
 	*xp = *yp;
