@@ -461,7 +461,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	// generate the mesh before the loop
-	{
+	//{
 		struct mesh sphereMesh;
 		int subdivisions = 8;
 		generateSphere(0.3, subdivisions, &sphereMesh);
@@ -573,7 +573,9 @@ int main(int argc, char *argv[]) {
 
 		testObjectChildNested.children[0] = &sphereObjectEnd;
 		testObjectChildNested.childCount = 1;
-	}
+
+		//printf("meshgen = %i - childcount\n", testObjectChildNested.childCount);
+	//}
     // fin!------------------------------------------------------------
 
     // clone the sceneObject stuff
