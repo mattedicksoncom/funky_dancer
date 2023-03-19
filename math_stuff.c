@@ -29,23 +29,28 @@ void vec3f_normalize(struct Vec3f *v) {
 	v->z /= length;
 }
 
-struct Vec3f barycentric(struct Vec2i *pts, struct Vec2i pixelCoord) {
-	struct Vec3f barycentricCoords = vec3f_CrossProduct((struct Vec3f){
-	                                                    pts[2].x - pts[0].x,
-	                                                    pts[1].x - pts[0].x,
-	                                                    pts[0].x - pixelCoord.x},
-	(struct Vec3f){pts[2].y - pts[0].y, pts[1].y - pts[0].y, pts[0].y - pixelCoord.y});
+struct Vec3f barycentric(struct Vec3f vert1, struct Vec3f vert2, struct Vec3f vert3, struct Vec3f pixelCoord) {
+	struct Vec3f s[2];
+
+	s[0].x = vert3.x - vert1.x;
+	s[0].y = vert2.x - vert1.x;
+	s[0].z = vert1.x - pixelCoord.x;
+
+	s[1].x = vert3.y - vert1.y;
+	s[1].y = vert2.y - vert1.y;
+	s[1].z = vert1.y - pixelCoord.y;
+
+	struct Vec3f barycentricCoords = vec3f_CrossProduct(s[0], s[1]);
 
 	// check if outside the triangle
-	if (fabs(barycentricCoords.z) < 1) {
-		return (struct Vec3f){-1, 1, 1};
+	if (fabs(barycentricCoords.z) > 1e-2) {
+		return (struct Vec3f) {
+			1.0f - (barycentricCoords.x + barycentricCoords.y) / barycentricCoords.z,
+			barycentricCoords.y / barycentricCoords.z,
+			barycentricCoords.x / barycentricCoords.z
+		};
 	}
-
-	return (struct Vec3f){
-		1.0f - (barycentricCoords.x + barycentricCoords.y) / barycentricCoords.z,
-		barycentricCoords.y / barycentricCoords.z,
-		barycentricCoords.x / barycentricCoords.z
-	};
+	return (struct Vec3f) { -1, 1, 1 };
 }
 
 struct Quaternion EulerToQuaternion(struct Vec3f euler) {
