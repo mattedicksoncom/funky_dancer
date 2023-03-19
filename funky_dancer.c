@@ -51,16 +51,82 @@ struct Vec3f WorldToScreen3D(struct OrthographicCamera3D camera, struct Vec3f wo
     return screenPoint;
 }
 
+uint32_t multiplyColorByFloat(uint32_t color, float factor) {
+	uint8_t r = (color >> 24) & 0xFF;
+	uint8_t g = (color >> 16) & 0xFF;
+	uint8_t b = (color >> 8) & 0xFF;
+
+	r = (uint8_t)(r * factor);
+	g = (uint8_t)(g * factor);
+	b = (uint8_t)(b * factor);
+
+	uint32_t newColor = (r << 24) | (g << 16) | (b << 8);
+	return newColor;
+}
+
 void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr, struct OrthographicCamera3D *camera_ptr) {
     struct mesh sphereMesh = *sphereMesh_ptr;
 
-    // draw the mesh
-    for (int i = 0; i < sphereMesh.faceCount; i++) {
-        int faceIndex = i * 3;
+	struct Vec3f light_dir = { .x = 0, .y = 0, .z = -1 };
+	for (int i = 0; i < sphereMesh.faceCount; i++) { 
+		//std::vector<int> face = model->face(i); 
+		struct Vec2i screen_coords[3]; 
+		struct Vec3f world_coords[3]; 
+		int faceIndex = i * 3;
 
-        for (int j = 0; j < 3; j++) {
-            int a = sphereMesh.face[faceIndex + j];
-            int b = sphereMesh.face[faceIndex + (j + 1) % 3];
+		for (int j = 0; j < 3; j++) {
+			int a = sphereMesh.face[faceIndex + j];
+
+			struct Vec3f v0 = {
+				.x = sphereMesh.vert[a * 3],
+				.y = sphereMesh.vert[a * 3 + 1],
+				.z = sphereMesh.vert[a * 3 + 2]
+			};
+
+			// fix this!!!
+			struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
+
+			float horiMult = 100;
+			float vertMult = 100;
+			float horiOffset = 640 / 2;
+			float vertOffset = 480 / 2;
+
+			float screenX0 = (screenPoint_1.x * horiMult) + 320;
+			float screenY0 = (screenPoint_1.y * vertMult) + 240;
+
+			screen_coords[j] = (struct Vec2i){
+				.x = screenX0,
+				.y = screenY0
+			};
+			world_coords[j] = v0; 
+		} 
+
+		struct Vec3f n = vec3f_CrossProduct(
+			vec3f_subtract(world_coords[2], world_coords[0]),
+			vec3f_subtract(world_coords[1], world_coords[0])
+		);
+		vec3f_normalize(&n);
+		float intensity = vec3f_dotProduct(n, light_dir);
+
+		uint32_t newColor = multiplyColorByFloat(0x2299ff55, intensity);
+
+		if (intensity > 0) {
+			drawTriangle(
+				screen_coords,
+				pixels,
+				newColor
+				//0x2299ff55 * intensity
+			);
+		}
+	}
+
+	// draw the mesh
+	for (int i = 0; i < sphereMesh.faceCount; i++) {
+		int faceIndex = i * 3;
+
+		for (int j = 0; j < 3; j++) {
+			int a = sphereMesh.face[faceIndex + j];
+			int b = sphereMesh.face[faceIndex + (j + 1) % 3];
 
 			struct Vec3f v0 = {
 				.x = sphereMesh.vert[a * 3],
@@ -74,22 +140,21 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 				.z = sphereMesh.vert[b * 3 + 2]
 			};
 
-            // fix this!!!
-            struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
-            struct Vec3f screenPoint_2 = WorldToScreen3D(*camera_ptr, v1);
+			struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
+			struct Vec3f screenPoint_2 = WorldToScreen3D(*camera_ptr, v1);
 
-            float horiMult = 100;
-            float vertMult = 100;
-            float horiOffset = 640 / 2;
-            float vertOffset = 480 / 2;
-            float screenX0 = screenPoint_1.x * horiMult + vertOffset;
-            float screenY0 = screenPoint_1.y * vertMult + horiOffset;
-            float screenX1 = screenPoint_2.x * horiMult + vertOffset;
-            float screenY1 = screenPoint_2.y * vertMult + horiOffset;
+			float horiMult = 100;
+			float vertMult = 100;
+			float horiOffset = 640 / 2;
+			float vertOffset = 480 / 2;
+			float screenX0 = screenPoint_1.x * horiMult + horiOffset;
+			float screenY0 = screenPoint_1.y * vertMult + vertOffset;
+			float screenX1 = screenPoint_2.x * horiMult + horiOffset;
+			float screenY1 = screenPoint_2.y * vertMult + vertOffset;
 
-            line(screenX0, screenY0, screenX1, screenY1, pixels, 0x2299ff55);
-        }
-    }
+			line(screenX0, screenY0, screenX1, screenY1, pixels, 0x2299ff55);
+		}
+	}
 }
 
 void cloneMesh(struct mesh *originalMesh, struct mesh *newMesh) {
@@ -157,9 +222,10 @@ void recurseChildren(
 	int delta,
 	struct mesh *sceneObjects[],
 	int *sceneObjectsCounter_ptr,
-	struct SceneObject *sceneObjectsForReal,
-	struct Vector3 transformRotationStack[],
-	struct Vector3 transformPositionStack[],
+	struct SceneObject *currentSceneObject,
+	struct Vec3f transformRotationStack[],
+	struct Vec3f transformPositionStack[],
+	struct SceneObject sceneObjectStack[],
 	int transformStackDepth
 ) {
     int sceneObjectsCounter = *sceneObjectsCounter_ptr;
@@ -169,59 +235,61 @@ void recurseChildren(
 	freeMem(sceneObjects, sceneObjectsCounter); // add back in! breaks emscripten for some reason
 #endif
 
-    testCloneMesh(sceneObjects, sceneObjectsCounter, sceneObjectsForReal->mesh);
+	testCloneMesh(sceneObjects, sceneObjectsCounter, currentSceneObject->mesh);
+	struct mesh *currentMesh = sceneObjects[sceneObjectsCounter];
 
-    struct Transform currentTransform = sceneObjectsForReal->transform;
+	struct Transform currentTransform = currentSceneObject->transform;
+	struct Quaternion currentRotation = currentTransform.rotation;
 
 	// rotate first
-	trs(sceneObjects[sceneObjectsCounter],
-	    0, 0, 0,
-	    currentTransform.rotation.x + delta, currentTransform.rotation.y, currentTransform.rotation.z + delta,
-	    1, 1, 1);
+	eularRotate(currentMesh,
+	            currentRotation.x + delta,
+	            currentRotation.y,
+	            currentRotation.z + delta);
 
 	// then move into position
-	trs(sceneObjects[sceneObjectsCounter],
+	trs(currentMesh,
 	    currentTransform.position.x, currentTransform.position.y, currentTransform.position.z,
 	    0, 0, 0,
 	    1, 1, 1);
 
+	// go backwards through transform stack
     for (int i = transformStackDepth - 1; i >= 0; i--) {
-        // go backwards through transform stack
         // rotate first
-		trs(sceneObjects[sceneObjectsCounter],
-		    0, 0, 0,
-		    transformRotationStack[i].x + 0, transformRotationStack[i].y, transformRotationStack[i].z,
-		    1, 1, 1);
+		eularRotate(currentMesh,
+		            transformRotationStack[i].x + 0,
+		            transformRotationStack[i].y,
+		            transformRotationStack[i].z);
 
         // then move into position
-		trs(sceneObjects[sceneObjectsCounter],
+		trs(currentMesh,
 		    transformPositionStack[i].x, transformPositionStack[i].y, transformPositionStack[i].z,
 		    0, 0, 0,
 		    1, 1, 1);
     }
 
     // Update transform stacks
-    struct Vector3 newRotation = {.x = currentTransform.rotation.x + delta,
-                                  .y = currentTransform.rotation.y,
-                                  .z = currentTransform.rotation.z + delta};
-	struct Vector3 newPosition = {
+	transformRotationStack[transformStackDepth] = (struct Vec3f){
+		.x = currentTransform.rotation.x + delta,
+		.y = currentTransform.rotation.y,
+		.z = currentTransform.rotation.z + delta
+	};
+	transformPositionStack[transformStackDepth] = (struct Vec3f){
 		.x = currentTransform.position.x,
 		.y = currentTransform.position.y,
 		.z = currentTransform.position.z
 	};
 
-    transformRotationStack[transformStackDepth] = newRotation;
-    transformPositionStack[transformStackDepth] = newPosition;
-
     iterateCounter(sceneObjectsCounter_ptr);
 
-    for (int j = 0; j < sceneObjectsForReal->childCount; j++) {
+	for (int j = 0; j < currentSceneObject->childCount; j++) {
 		recurseChildren(delta * 2,
 		                sceneObjects,
 		                sceneObjectsCounter_ptr,
-		                sceneObjectsForReal->children[j],
+		                currentSceneObject->children[j],
 		                transformRotationStack,
 		                transformPositionStack,
+		                sceneObjectStack,
 		                transformStackDepth + 1);
     }
 }
@@ -324,15 +392,19 @@ void emscriptenLoop(void *arg) {
 
 	// attempt to render the scene meshes ----------------------------------
 	for (int i = 0; i < appProperties->sceneObjectForRealCount; i++) {
-		struct Vector3 cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
-		struct Vector3 cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
-		recurseChildren(appProperties->delta * 2,
-		                appProperties->sceneObjects,
-		                &sceneObjectsCounter,
-		                appProperties->sceneObjectsForReal[i],
-		                cumulativeRotation,
-		                cumulativeTransform,
-		                1);
+		struct Vec3f cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
+		struct Vec3f cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
+		struct SceneObject sceneObjectStack[500];
+		recurseChildren(
+			appProperties->delta * 2,
+			appProperties->sceneObjects,
+			&sceneObjectsCounter,
+			appProperties->sceneObjectsForReal[i],
+			cumulativeRotation,
+			cumulativeTransform,
+			sceneObjectStack,
+			1
+		);
 	}
 
 	// use an sdl texture for emscripten
@@ -387,10 +459,19 @@ void nativeLoop(void *arg) {
 
 	// attempt to render the scene meshes ----------------------------------
 	for (int i = 0; i < appProperties->sceneObjectForRealCount; i++) {
-		struct Vector3 cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
-		struct Vector3 cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
-		recurseChildren(appProperties->delta * 2, appProperties->sceneObjects, &sceneObjectsCounter, appProperties->sceneObjectsForReal[i], cumulativeRotation,
-		                cumulativeTransform, 1);
+		struct Vec3f cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
+		struct Vec3f cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
+		struct SceneObject sceneObjectStack[500];
+		recurseChildren(
+			appProperties->delta * 2,
+			appProperties->sceneObjects,
+			&sceneObjectsCounter,
+			appProperties->sceneObjectsForReal[i],
+			cumulativeRotation,
+			cumulativeTransform,
+			sceneObjectStack,
+			1
+		);
 	}
 
 	SDL_LockSurface(appProperties->surface);
@@ -419,7 +500,7 @@ void nativeLoop(void *arg) {
 }
 
 int main(int argc, char *argv[]) {
-    char *funkyString = "Starting the funk!";
+    char *funkyString = "Starting the funk! updating";
     printf("%s\n", funkyString);
 
     Uint32 startTicks, frameTicks;
