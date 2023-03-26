@@ -58,6 +58,18 @@ struct Mat4 Mat4_Orthographic(float left, float right, float top, float bottom, 
 	0, 0, 0, 1}};
 }
 
+struct Mat4 Mat4_Perspective(float fovy, float aspect, float near, float far) {
+	float f = 1.0f / tan(fovy / 2.0f);
+
+	return (struct Mat4){.m = {
+			f / aspect, 0, 0, 0,
+			0, f, 0, 0,
+			0, 0, (near + far) / (near - far), (2.0f * near * far) / (near - far),
+			0, 0, -1.0f, 0
+		}
+	};
+}
+
 struct Mat4 Mat4_Multiply(struct Mat4 a, struct Mat4 b) {
 	struct Mat4 result;
 	for (int y = 0; y < 4; ++y) {
