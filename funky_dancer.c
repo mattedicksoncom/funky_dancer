@@ -8,6 +8,7 @@
 #include "math_stuff.c"
 #include "pixel_drawing.c"
 #include "mesh_generators.c"
+#include "matcap_test.c"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -64,13 +65,18 @@ uint32_t multiplyColorByFloat(uint32_t color, float factor) {
 	return newColor;
 }
 
-void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr, struct OrthographicCamera3D *camera_ptr, float *depthBuffer) {
+void draw_scene(char* pixels,
+                int width, int height, struct mesh *sphereMesh_ptr,
+                struct OrthographicCamera3D *camera_ptr, 
+                float *depthBuffer, char *matCap1) {
     struct mesh sphereMesh = *sphereMesh_ptr;
-
+	uint32_t color = sphereMesh.color;
 	struct Vec3f light_dir = { .x = 0, .y = 0, .z = -1 };
+
 	for (int i = 0; i < sphereMesh.faceCount; i++) { 
 		//std::vector<int> face = model->face(i); 
 		struct Vec3f screen_coords[3]; 
+		struct Vec3f screen_normal_coords[3]; 
 		struct Vec3f world_coords[3]; 
 		int faceIndex = i * 3;
 
@@ -94,29 +100,63 @@ void draw_scene(char* pixels, int width, int height, struct mesh *sphereMesh_ptr
 			float screenX0 = (screenPoint_1.x * horiMult) + 320;
 			float screenY0 = (screenPoint_1.y * vertMult) + 240;
 
+
 			screen_coords[j] = (struct Vec3f){
 				.x = screenX0,
 				.y = screenY0,
 				.z = screenPoint_1.z
 			};
+			screen_normal_coords[j] = (struct Vec3f){
+				.x = screenPoint_1.x,
+				.y = screenPoint_1.y,
+				.z = screenPoint_1.z
+			};
 			world_coords[j] = v0; 
 		} 
 
+		//struct Vec3f n = vec3f_CrossProduct(
+			//vec3f_subtract(world_coords[2], world_coords[0]),
+			//vec3f_subtract(world_coords[1], world_coords[0])
+		//);
 		struct Vec3f n = vec3f_CrossProduct(
-			vec3f_subtract(world_coords[2], world_coords[0]),
-			vec3f_subtract(world_coords[1], world_coords[0])
+			vec3f_subtract(screen_normal_coords[2], screen_normal_coords[0]),
+			vec3f_subtract(screen_normal_coords[1], screen_normal_coords[0])
 		);
+
 		vec3f_normalize(&n);
+		vec3f_normalize(&light_dir);
 		float intensity = vec3f_dotProduct(n, light_dir);
 
-		uint32_t newColor = multiplyColorByFloat(0x2299ff55, intensity);
+		uint32_t newColor = multiplyColorByFloat(color, intensity);
+
+		// attempt to use the matcap
+		float u = 0.5f + (n.x * 0.5f);
+		float v = 0.5f - (n.y * 0.5f);
+
+		// get the matcap pixel pos
+		int imageDimensions = 64;
+		int x = (int)(u * imageDimensions) % imageDimensions;
+		int y = (int)(v * imageDimensions) % imageDimensions;
+		int pixelIndex = (x + y * imageDimensions) * 4; // Assumes the matcap data has 4 channels (RGBA)
+		
+		unsigned char color[4];
+		color[0] = matCap1[pixelIndex];
+		color[1] = matCap1[pixelIndex + 1];
+		color[2] = matCap1[pixelIndex + 2];
+		color[3] = matCap1[pixelIndex + 3];
+		Uint32 pixelColor = 0;
+
+		// maybe make a function for this, i hate bitshift
+		pixelColor |= (Uint32)color[0] << 24; // r
+		pixelColor |= (Uint32)color[1] << 16; // g
+		pixelColor |= (Uint32)color[2] << 8;  // b
 
 		if (intensity > 0) {
 			drawTriangle(
 				screen_coords,
 				pixels,
 				depthBuffer,
-				newColor
+				pixelColor
 				//0x2299ff55 * intensity
 			);
 		}
@@ -193,6 +233,8 @@ void cloneMeshToScene(struct mesh *originalMesh, struct mesh *newMesh) {
     newMesh->face = malloc(sizeof(int) * originalMesh->faceCount * 3);
     memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
     newMesh->faceCount = originalMesh->faceCount;
+
+	newMesh->color = originalMesh->color;
 }
 
 void cloneMeshToScene_NOMALLOC(struct mesh *originalMesh, struct mesh *newMesh) {
@@ -201,6 +243,8 @@ void cloneMeshToScene_NOMALLOC(struct mesh *originalMesh, struct mesh *newMesh) 
 
     memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
     newMesh->faceCount = originalMesh->faceCount;
+
+	newMesh->color = originalMesh->color;
 }
 void freeMem(struct mesh *sceneObjects[], int sceneObjectsCounter) {
     // free the memory for these two things
@@ -340,6 +384,8 @@ struct AppProperties {
 	struct OrthographicCamera3D camera; // change to a proper set up
 	struct mesh *sceneObjects[500];
 	struct SceneObject *sceneObjectsForReal[500];
+	struct Vec3f transformPositionStack[500];
+	struct Vec3f transformRotationStack[500];
 	int meshCount;
 	int sceneMeshCount;
 	int sceneObjectForRealCount;
@@ -347,6 +393,8 @@ struct AppProperties {
 	int frameTicks;
 	int startTicks;
 	int finishTheFunk;
+	float* depthBuffer;
+	char* matCap1;
 };
 
 void interactionHandler(SDL_Event *event, struct AppProperties *appProperties) {
@@ -381,8 +429,8 @@ void interactionHandler(SDL_Event *event, struct AppProperties *appProperties) {
 void emscriptenLoop(void *arg) {
 	struct AppProperties *appProperties = (struct AppProperties*)arg;
 
-	SDL_SetRenderDrawColor(appProperties->renderer, 0, 0, 0, 255);
-	SDL_RenderClear(appProperties->renderer);
+	//SDL_SetRenderDrawColor(appProperties->renderer, 0, 0, 0, 255);
+	//SDL_RenderClear(appProperties->renderer);
 
 	int sceneObjectsCounter = 0;
 
@@ -394,16 +442,20 @@ void emscriptenLoop(void *arg) {
 
 	// attempt to render the scene meshes ----------------------------------
 	for (int i = 0; i < appProperties->sceneObjectForRealCount; i++) {
-		struct Vec3f cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
-		struct Vec3f cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
-		struct SceneObject sceneObjectStack[500];
+		//struct Vec3f cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
+		//struct Vec3f cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
+
+		appProperties->transformRotationStack[0] = (struct Vec3f){.x = 0, .y = 0, .z = 0};
+		appProperties->transformPositionStack[0] = (struct Vec3f){.x = 0, .y = sin(appProperties->delta * 0.01) * 0.5, .z = 0};
+
+		struct SceneObject sceneObjectStack[1];
 		recurseChildren(
 			appProperties->delta * 2,
 			appProperties->sceneObjects,
 			&sceneObjectsCounter,
 			appProperties->sceneObjectsForReal[i],
-			cumulativeRotation,
-			cumulativeTransform,
+			appProperties->transformRotationStack,
+			appProperties->transformPositionStack,
 			sceneObjectStack,
 			1
 		);
@@ -421,16 +473,18 @@ void emscriptenLoop(void *arg) {
 	//char *pixels;
 	char *pixels = appProperties->surface->pixels;
 	int pitch;
-	float *depthBuffer = (float *)malloc(640 * 480 * sizeof(float));
+	//float *depthBuffer = (float *)malloc(640 * 480 * sizeof(float));
 	SDL_LockTexture(appProperties->texture, NULL, (void **)&pixels, &pitch);
 
 	// work out a better way to clear the texture(eventually may not be need though)
-	for (int i = 0; i < 640 * 480 * 4; ++i) {
+	for (int i = 0; i < 640 * 480; ++i) {
+		appProperties->depthBuffer[i] = 0x00000000;
 		pixels[i] = 0x00000000;
 	}
-	for (int i = 0; i < 640 * 480; ++i) {
-		depthBuffer[i] = 0x00000000;
+	for (int i = 640 * 480; i < 640 * 480 * 4; ++i) {
+		pixels[i] = 0x00000000;
 	}
+	
 
 	for (int i = 0; i < sceneObjectsCounter; i++) {
 		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, depthBuffer);
@@ -441,7 +495,7 @@ void emscriptenLoop(void *arg) {
 	SDL_RenderCopy(appProperties->renderer, appProperties->texture, NULL, NULL);
 	SDL_RenderPresent(appProperties->renderer);
 
-	free(depthBuffer);
+	//free(depthBuffer);
 
 	appProperties->delta++;
 }
@@ -461,7 +515,7 @@ void nativeLoop(void *arg) {
 		interactionHandler(&event, appProperties);
 	}
 
-	SDL_FillRect(appProperties->surface, NULL, 0);
+	SDL_FillRect(appProperties->surface, NULL, 0xffffffff);
 
 	int sceneObjectsCounter = 0;
 
@@ -475,8 +529,8 @@ void nativeLoop(void *arg) {
 			appProperties->sceneObjects,
 			&sceneObjectsCounter,
 			appProperties->sceneObjectsForReal[i],
-			cumulativeRotation,
-			cumulativeTransform,
+			appProperties->transformRotationStack,
+			appProperties->transformPositionStack,
 			sceneObjectStack,
 			1
 		);
@@ -488,7 +542,7 @@ void nativeLoop(void *arg) {
 
 	float depthBuffer[640 * 480] = { 0 };
 	for (int i = 0; i < sceneObjectsCounter; i++) {
-		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, depthBuffer);
+		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, depthBuffer, appProperties->matCap1);
 	}
 
 	SDL_UnlockSurface(appProperties->surface);
@@ -514,6 +568,7 @@ int main(int argc, char *argv[]) {
 
     Uint32 startTicks, frameTicks;
 
+	unsigned char* imageData = testMatcap;
 	struct AppProperties appProperties = { 
 		.width = 640, 
 		.height = 480,
@@ -525,7 +580,8 @@ int main(int argc, char *argv[]) {
 		.sceneObjectsCounter2 = 0,
 		.frameTicks = 0,
 		.startTicks = 0,
-		.finishTheFunk = 0
+		.finishTheFunk = 0,
+		.matCap1 = imageData
 	};
 
 	SDL_SetWindowOpacity(appProperties.window, 1.0);
@@ -553,14 +609,16 @@ int main(int argc, char *argv[]) {
 	// generate the mesh before the loop
 	//{
 		struct mesh sphereMesh;
-		int subdivisions = 8;
+		int subdivisions = 80;
 		generateSphere(0.3, subdivisions, &sphereMesh);
+		sphereMesh.color = 0xff992255;
 		trs(&sphereMesh,
 		    0.0, -0.5, 0.0,
 		    0, 0, 0,
 		    1.0, 1.0, 1.0);
 		struct SceneObject testSphere = (struct SceneObject) {
 			.mesh = &sphereMesh,
+			.color = 0xff992255,
 			.transform = (struct Transform) {
 				.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
 				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
@@ -576,9 +634,11 @@ int main(int argc, char *argv[]) {
 		// test rendering a scene object
 		struct mesh sceneCubeTest;
 		generateCube(1.0, 1.0, 1.0, &sceneCubeTest);
+		sceneCubeTest.color = 0x2299ff55;
 
 		struct SceneObject testObject;
 		testObject.mesh = &sceneCubeTest;
+		testObject.color = 0x2299ff55;
 
 		trs(&sceneCubeTest,
 		    0.0, 0.5, 0.0,
@@ -597,6 +657,7 @@ int main(int argc, char *argv[]) {
 
 		// test left arm mesh
 		struct mesh leftArmMesh;
+		leftArmMesh.color = 0x2299ff55;
 		generateCube(1.0, 1.0, 1.0, &leftArmMesh);
 		trs(&leftArmMesh,
 		    0.5, 0.0, 0.0,
@@ -604,7 +665,7 @@ int main(int argc, char *argv[]) {
 		    1, 0.3, 0.3);
 		struct SceneObject leftArmObject;
 		leftArmObject.mesh = &leftArmMesh;
-
+		leftArmObject.color = 0x2299ff55;
 		leftArmObject.transform = (struct Transform) {
 			.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
 			.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = -20.0f },
@@ -619,6 +680,7 @@ int main(int argc, char *argv[]) {
 
 		// left forearm arm
 		struct mesh leftForeArmMesh;
+		leftForeArmMesh.color = 0x2299ff55;
 		generateCube(1.0, 1.0, 1.0, &leftForeArmMesh);
 		trs(&leftForeArmMesh,
 		    0.5, 0.0, 0.0,
@@ -626,6 +688,7 @@ int main(int argc, char *argv[]) {
 		    1, 0.3, 0.3);
 		struct SceneObject leftForeArmObject = (struct SceneObject) {
 			.mesh = &leftForeArmMesh,
+			.color = 0x2299ff55,
 			.transform = (struct Transform) {
 				.position = (struct Vector3) { .x = 1.0f, .y = 0.0f, .z = 0.0f },
 				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
@@ -639,6 +702,7 @@ int main(int argc, char *argv[]) {
 
 		// right arm
 		struct mesh rightArmMesh;
+		rightArmMesh.color = 0x2299ff55;
 		generateCube(1.0, 1.0, 1.0, &rightArmMesh);
 		trs(&rightArmMesh,
 		    -0.5, 0.0, 0.0,
@@ -646,6 +710,7 @@ int main(int argc, char *argv[]) {
 		    1, 0.3, 0.3);
 		struct SceneObject rightArmObject = (struct SceneObject) {
 			.mesh = &rightArmMesh,
+			.color = 0x2299ff55,
 			.transform = (struct Transform) {
 				.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
 				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 20.0f },
@@ -659,6 +724,7 @@ int main(int argc, char *argv[]) {
 
 		// right forearm arm
 		struct mesh rightForeArmMesh;
+		rightForeArmMesh.color = 0x2299ff55;
 		generateCube(1.0, 1.0, 1.0, &rightForeArmMesh);
 		trs(&rightForeArmMesh,
 		    -0.5, 0.0, 0.0,
@@ -666,6 +732,7 @@ int main(int argc, char *argv[]) {
 		    1, 0.3, 0.3);
 		struct SceneObject rightForeArmObject = (struct SceneObject) {
 			.mesh = &rightForeArmMesh,
+			.color = 0x2299ff55,
 			.transform = (struct Transform) {
 				.position = (struct Vector3) { .x = -1.0f, .y = 0.0f, .z = 0.0f },
 				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
@@ -679,6 +746,7 @@ int main(int argc, char *argv[]) {
 
 		// right leg
 		struct mesh rightLegMesh;
+		rightLegMesh.color = 0x2299ff55;
 		generateCube(1.0, 1.0, 1.0, &rightLegMesh);
 		trs(&rightLegMesh,
 		    0.0, 0.5, 0.0,
@@ -686,6 +754,7 @@ int main(int argc, char *argv[]) {
 		    0.3, 1.0, 0.3);
 		struct SceneObject rightLegObject = (struct SceneObject) {
 			.mesh = &rightLegMesh,
+			.color = 0x2299ff55,
 			.transform = (struct Transform) {
 				.position = (struct Vector3) { .x = -0.3f, .y = 1.0f, .z = 0.0f },
 				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
@@ -699,6 +768,7 @@ int main(int argc, char *argv[]) {
 
 		// left leg
 		struct mesh leftLegMesh;
+		leftLegMesh.color = 0x2299ff55;
 		generateCube(1.0, 1.0, 1.0, &leftLegMesh);
 		trs(&leftLegMesh,
 		    0.0, 0.5, 0.0,
@@ -706,6 +776,7 @@ int main(int argc, char *argv[]) {
 		    0.3, 1.0, 0.3);
 		struct SceneObject leftLegObject = (struct SceneObject) {
 			.mesh = &leftLegMesh,
+			.color = 0x2299ff55,
 			.transform = (struct Transform) {
 				.position = (struct Vector3) { .x = 0.3f, .y = 1.0f, .z = 0.0f },
 				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
