@@ -727,9 +727,11 @@ int main(int argc, char *argv[]) {
 		);
     }
 
+	appProperties.depthBuffer = (float *)malloc(640 * 480 * sizeof(float));
+
 	// use a different loop for emscripten
 #ifdef __EMSCRIPTEN__
-	emscripten_set_main_loop_arg(emscriptenLoop, &appProperties, -1, 1);
+	emscripten_set_main_loop_arg(emscriptenLoop, &appProperties, 144, 1);
 #else
     while (!appProperties.finishTheFunk) {
 		nativeLoop(&appProperties);
