@@ -289,9 +289,9 @@ void recurseChildren(
 
 	// rotate first
 	eularRotate(currentMesh,
-	            currentRotation.x + delta,
+	            currentRotation.x + delta * 0.2,
 	            currentRotation.y,
-	            currentRotation.z + delta);
+	            currentRotation.z + delta* 0.2);
 
 	// then move into position
 	trs(currentMesh,
@@ -316,9 +316,9 @@ void recurseChildren(
 
     // Update transform stacks
 	transformRotationStack[transformStackDepth] = (struct Vec3f){
-		.x = currentTransform.rotation.x + delta,
+		.x = currentTransform.rotation.x + delta * 0.2,
 		.y = currentTransform.rotation.y,
-		.z = currentTransform.rotation.z + delta
+		.z = currentTransform.rotation.z + delta* 0.2
 	};
 	transformPositionStack[transformStackDepth] = (struct Vec3f){
 		.x = currentTransform.position.x,
@@ -487,7 +487,7 @@ void emscriptenLoop(void *arg) {
 	
 
 	for (int i = 0; i < sceneObjectsCounter; i++) {
-		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, depthBuffer);
+		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, appProperties->depthBuffer, appProperties->matCap1);
 	}
 
 	SDL_UnlockTexture(appProperties->texture);
@@ -552,7 +552,7 @@ void nativeLoop(void *arg) {
 	SDL_UpdateWindowSurface(appProperties->window);
 
 	// SDL_Delay(1000 / 12);
-	float targetFrameTime = 1000 / 24;
+	float targetFrameTime = 1000 / 144;
 
 	appProperties->frameTicks = SDL_GetTicks() - appProperties->startTicks;
 	if (appProperties->frameTicks < targetFrameTime) {
