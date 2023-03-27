@@ -1,0 +1,153 @@
+<!doctypehtml>
+<html lang=en-us>
+    <head>
+        <meta charset=utf-8>
+        <meta content="text/html; charset=utf-8" http-equiv=Content-Type>
+        <title>Funky Dancer</title>
+        <style>
+            html, body {
+				height: 100%;
+                font-family: arial;
+                margin: 0;
+                padding: none;
+				background: #000128;
+            }
+
+			body {
+				display: flex;
+    			flex-direction: column;
+			}
+
+            .emscripten {
+                padding-right: 0;
+                margin-left: auto;
+                margin-right: auto;
+                display: block
+            }
+
+			.emscripten_border {
+				height: 100%;
+				display: flex;
+    			align-items: center;
+			}
+
+            div.emscripten {
+                text-align: center
+            }
+
+            canvas.emscripten {
+                border: 0 none;
+                background-color: #000;
+				image-rendering: pixelated;
+            }
+
+            #status {
+                display: inline-block;
+                vertical-align: top;
+                margin-top: 30px;
+                margin-left: 20px;
+                font-weight: 700;
+                color: #787878
+            }
+
+            #progress {
+                height: 20px;
+                width: 300px
+            }
+
+            #controls {
+                display: inline-block;
+                vertical-align: top;
+                margin-top: 30px;
+                margin-right: 20px;
+				position: absolute;
+    			right: 0px;
+            }
+
+            #output {
+                width: 100%;
+                height: 200px;
+                margin: 0 auto;
+                margin-top: 10px;
+                border-left: 0;
+                border-right: 0px;
+                padding-left: 0;
+                padding-right: 0;
+                display: block;
+                background-color: #000;
+                color: #fff;
+                font-family: 'Lucida Console',Monaco,monospace;
+                outline: 0
+            }
+        </style>
+    </head>
+    <body>
+        <div class=spinner id=spinner></div>
+        <div class=emscripten id=status>Downloading...</div>
+        <span id=controls>
+            <span>
+                <input type=checkbox id=resize>Resize canvas
+            </span>
+            <span>
+                <input type=checkbox id=pointerLock checked>Lock/hide mouse pointer    
+            </span>
+            <span>
+                <input type=button onclick='Module.requestFullscreen(document.getElementById("pointerLock").checked,document.getElementById("resize").checked)' value=Fullscreen>
+            </span>
+        </span>
+        <div class=emscripten>
+            <progress hidden id=progress max=100 value=0></progress>
+        </div>
+        <div class=emscripten_border>
+            <canvas class=emscripten id=canvas oncontextmenu=event.preventDefault() tabindex=-1></canvas>
+        </div>
+        <textarea id=output rows=8></textarea>
+        <script>
+            var statusElement = document.getElementById("status");
+            var progressElement = document.getElementById("progress");
+            var spinnerElement = document.getElementById("spinner");
+            var Module = {
+                preRun: [],
+                postRun: [],
+                print: function() {
+                    var outputElement = document.getElementById("output");
+					if(outputElement) {
+						(outputElement.value = "");
+					}
+                    return function(printStatement) {
+                        arguments.length > 1 && (printStatement = Array.prototype.slice.call(arguments).join(" ")),
+                        console.log(printStatement),
+                        outputElement && (outputElement.value += printStatement + "\n",
+                        outputElement.scrollTop = outputElement.scrollHeight)
+                    }
+                }(),
+                canvas: function() {
+                    var canvasElement = document.getElementById("canvas");
+					canvasElement.addEventListener("webglcontextlost", (function(event) {
+                        	alert("WebGL context lost. You will need to reload the page.");
+                        	event.preventDefault();
+                    	}
+                    ), !1);
+                    return canvasElement;
+                }(),
+                setStatus: function(event) {
+                    // do something
+                },
+                totalDependencies: 0,
+                monitorRunDependencies: function(event) {
+                    this.totalDependencies = Math.max(this.totalDependencies, event);
+                    Module.setStatus(event ? "Preparing... (" + (this.totalDependencies - event) + "/" + this.totalDependencies + ")" : "All downloads complete.")
+                }
+            };
+            Module.setStatus("Downloading..."),
+            window.onerror = function(event) {
+                Module.setStatus("Exception thrown, see JavaScript console");
+                spinnerElement.style.display = "none";
+                Module.setStatus = function(event) {
+                    event && console.error("[post-exception status] " + event)
+                }
+            }
+        </script>
+		{{{ SCRIPT }}}
+    </body>
+</html>
