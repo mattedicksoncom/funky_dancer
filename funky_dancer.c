@@ -9,22 +9,11 @@
 #include "pixel_drawing.c"
 #include "mesh_generators.c"
 #include "matcap_test.c"
+#include "test_mesh.c"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-
-struct MouseHandler {
-    int startX;
-    int startY;
-    bool isDown;
-};
-
-struct OrthographicCamera3D {
-    struct Vec3f position;
-    struct Vec3f rotation;
-    struct Quaternion q_rotation;
-};
 
 struct Vec3f WorldToScreen3D(struct OrthographicCamera3D camera, struct Vec3f worldPoint) {
     // calc view matrix
@@ -371,32 +360,6 @@ void recurseChildrenSetup(
 	}
 }
 
-struct AppProperties {
-	int width;
-	int height;
-	SDL_Window *window;
-	SDL_Surface *screen;
-	SDL_Surface *surface;
-	SDL_Renderer *renderer;
-	SDL_Texture *texture;
-	int delta;
-	struct MouseHandler mouseHandler; // change to a proper set up
-	struct OrthographicCamera3D camera; // change to a proper set up
-	struct mesh *sceneObjects[500];
-	struct SceneObject *sceneObjectsForReal[500];
-	struct Vec3f transformPositionStack[500];
-	struct Vec3f transformRotationStack[500];
-	int meshCount;
-	int sceneMeshCount;
-	int sceneObjectForRealCount;
-	int sceneObjectsCounter2;
-	int frameTicks;
-	int startTicks;
-	int finishTheFunk;
-	float* depthBuffer;
-	char* matCap1;
-};
-
 void interactionHandler(SDL_Event *event, struct AppProperties *appProperties) {
 	if (event->type == SDL_MOUSEMOTION) {
 		int mouseX = event->motion.x;
@@ -607,187 +570,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	// generate the mesh before the loop
-	//{
-		struct mesh sphereMesh;
-		int subdivisions = 80;
-		generateSphere(0.3, subdivisions, &sphereMesh);
-		sphereMesh.color = 0xff992255;
-		trs(&sphereMesh,
-		    0.0, -0.5, 0.0,
-		    0, 0, 0,
-		    1.0, 1.0, 1.0);
-		struct SceneObject testSphere = (struct SceneObject) {
-			.mesh = &sphereMesh,
-			.color = 0xff992255,
-			.transform = (struct Transform) {
-				.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
-				.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
-			},
-			.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-			.childCount = 0
-		};
-		appProperties.sceneObjectsForReal[appProperties.sceneObjectForRealCount++] = &testSphere;
-
-
-
-		// test rendering a scene object
-		struct mesh sceneCubeTest;
-		generateCube(1.0, 1.0, 1.0, &sceneCubeTest);
-		sceneCubeTest.color = 0x2299ff55;
-
-		struct SceneObject testObject;
-		testObject.mesh = &sceneCubeTest;
-		testObject.color = 0x2299ff55;
-
-		trs(&sceneCubeTest,
-		    0.0, 0.5, 0.0,
-		    0, 0, 0,
-		    0.3, 1.0, 0.3);
-
-		testObject.transform = (struct Transform) {
-			.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-			.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
-			.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
-		};
-		testObject.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
-		testObject.childCount = 0;
-
-		appProperties.sceneObjectsForReal[appProperties.sceneObjectForRealCount++] = &testObject;
-
-		// test left arm mesh
-		struct mesh leftArmMesh;
-		leftArmMesh.color = 0x2299ff55;
-		generateCube(1.0, 1.0, 1.0, &leftArmMesh);
-		trs(&leftArmMesh,
-		    0.5, 0.0, 0.0,
-		    0, 0, 0,
-		    1, 0.3, 0.3);
-		struct SceneObject leftArmObject;
-		leftArmObject.mesh = &leftArmMesh;
-		leftArmObject.color = 0x2299ff55;
-		leftArmObject.transform = (struct Transform) {
-			.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-			.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = -20.0f },
-			.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
-		};
-		leftArmObject.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
-		leftArmObject.childCount = 0;
-
-		// add the child to the test mesh
-		testObject.children[testObject.childCount] = &leftArmObject;
-		testObject.childCount++;
-
-		// left forearm arm
-		struct mesh leftForeArmMesh;
-		leftForeArmMesh.color = 0x2299ff55;
-		generateCube(1.0, 1.0, 1.0, &leftForeArmMesh);
-		trs(&leftForeArmMesh,
-		    0.5, 0.0, 0.0,
-		    0, 0, 0,
-		    1, 0.3, 0.3);
-		struct SceneObject leftForeArmObject = (struct SceneObject) {
-			.mesh = &leftForeArmMesh,
-			.color = 0x2299ff55,
-			.transform = (struct Transform) {
-				.position = (struct Vector3) { .x = 1.0f, .y = 0.0f, .z = 0.0f },
-				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
-				.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
-			},
-			.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-			.childCount = 0
-		};
-		leftArmObject.children[leftArmObject.childCount] = &leftForeArmObject;
-		leftArmObject.childCount++;
-
-		// right arm
-		struct mesh rightArmMesh;
-		rightArmMesh.color = 0x2299ff55;
-		generateCube(1.0, 1.0, 1.0, &rightArmMesh);
-		trs(&rightArmMesh,
-		    -0.5, 0.0, 0.0,
-		    0, 0, 0,
-		    1, 0.3, 0.3);
-		struct SceneObject rightArmObject = (struct SceneObject) {
-			.mesh = &rightArmMesh,
-			.color = 0x2299ff55,
-			.transform = (struct Transform) {
-				.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 20.0f },
-				.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
-			},
-			.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-			.childCount = 0
-		};
-		testObject.children[testObject.childCount] = &rightArmObject;
-		testObject.childCount++;
-
-		// right forearm arm
-		struct mesh rightForeArmMesh;
-		rightForeArmMesh.color = 0x2299ff55;
-		generateCube(1.0, 1.0, 1.0, &rightForeArmMesh);
-		trs(&rightForeArmMesh,
-		    -0.5, 0.0, 0.0,
-		    0, 0, 0,
-		    1, 0.3, 0.3);
-		struct SceneObject rightForeArmObject = (struct SceneObject) {
-			.mesh = &rightForeArmMesh,
-			.color = 0x2299ff55,
-			.transform = (struct Transform) {
-				.position = (struct Vector3) { .x = -1.0f, .y = 0.0f, .z = 0.0f },
-				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
-				.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
-			},
-			.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-			.childCount = 0
-		};
-		rightArmObject.children[rightArmObject.childCount] = &rightForeArmObject;
-		rightArmObject.childCount++;
-
-		// right leg
-		struct mesh rightLegMesh;
-		rightLegMesh.color = 0x2299ff55;
-		generateCube(1.0, 1.0, 1.0, &rightLegMesh);
-		trs(&rightLegMesh,
-		    0.0, 0.5, 0.0,
-		    0, 0, 0,
-		    0.3, 1.0, 0.3);
-		struct SceneObject rightLegObject = (struct SceneObject) {
-			.mesh = &rightLegMesh,
-			.color = 0x2299ff55,
-			.transform = (struct Transform) {
-				.position = (struct Vector3) { .x = -0.3f, .y = 1.0f, .z = 0.0f },
-				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
-				.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
-			},
-			.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-			.childCount = 0
-		};
-		testObject.children[testObject.childCount] = &rightLegObject;
-		testObject.childCount++;
-
-		// left leg
-		struct mesh leftLegMesh;
-		leftLegMesh.color = 0x2299ff55;
-		generateCube(1.0, 1.0, 1.0, &leftLegMesh);
-		trs(&leftLegMesh,
-		    0.0, 0.5, 0.0,
-		    0, 0, 0,
-		    0.3, 1.0, 0.3);
-		struct SceneObject leftLegObject = (struct SceneObject) {
-			.mesh = &leftLegMesh,
-			.color = 0x2299ff55,
-			.transform = (struct Transform) {
-				.position = (struct Vector3) { .x = 0.3f, .y = 1.0f, .z = 0.0f },
-				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
-				.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
-			},
-			.attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
-			.childCount = 0
-		};
-		testObject.children[testObject.childCount] = &leftLegObject;
-		testObject.childCount++;
-    // fin!------------------------------------------------------------
+	setupTestMesh(&appProperties);
 
     // clone the sceneObject stuff
     for (int i = 0; i < appProperties.sceneObjectForRealCount; i++) {
