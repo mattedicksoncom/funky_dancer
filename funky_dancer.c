@@ -226,6 +226,7 @@ void cloneMeshToScene(struct Mesh *originalMesh, struct Mesh *newMesh) {
     newMesh->faceCount = originalMesh->faceCount;
 
 	newMesh->color = originalMesh->color;
+	newMesh->matcap = originalMesh->matcap;
 }
 
 void cloneMeshToScene_NOMALLOC(struct Mesh *originalMesh, struct Mesh *newMesh) {
@@ -236,6 +237,7 @@ void cloneMeshToScene_NOMALLOC(struct Mesh *originalMesh, struct Mesh *newMesh) 
     newMesh->faceCount = originalMesh->faceCount;
 
 	newMesh->color = originalMesh->color;
+	newMesh->matcap = originalMesh->matcap;
 }
 void freeMem(struct Mesh *sceneObjects[], int sceneObjectsCounter) {
     // free the memory for these two things
@@ -457,7 +459,9 @@ void emscriptenLoop(void *arg) {
 	
 
 	for (int i = 0; i < sceneObjectsCounter; i++) {
-		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, appProperties->depthBuffer, appProperties->matCap1);
+		int matcapIndex = appProperties->sceneObjects[i]->matcap;
+		unsigned char* currentMatcap = appProperties->matCaps[matcapIndex];
+		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, appProperties->depthBuffer, currentMatcap);
 	}
 
 	SDL_UnlockTexture(appProperties->texture);
@@ -517,7 +521,9 @@ void nativeLoop(void *arg) {
 
 	float depthBuffer[640 * 480] = { 0 };
 	for (int i = 0; i < sceneObjectsCounter; i++) {
-		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, depthBuffer, appProperties->matCap1);
+		int matcapIndex = appProperties->sceneObjects[i]->matcap;
+		unsigned char* currentMatcap = appProperties->matCaps[matcapIndex];
+		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, depthBuffer, currentMatcap);
 	}
 
 	SDL_UnlockSurface(appProperties->surface);
@@ -543,9 +549,9 @@ int main(int argc, char *argv[]) {
 
     Uint32 startTicks, frameTicks;
 
-	//unsigned char* imageData = metalOrange;
-	unsigned char* imageData = metalGreen;
-
+	//unsigned char* imageData = metalOrangeMatcap;
+	unsigned char* imageData = metalGreenMatcap;
+	//unsigned char* matCaps[2] = 
 
 	struct AppProperties appProperties = { 
 		.width = 640, 
@@ -559,7 +565,11 @@ int main(int argc, char *argv[]) {
 		.frameTicks = 0,
 		.startTicks = 0,
 		.finishTheFunk = 0,
-		.matCap1 = imageData
+		.matCap1 = imageData,
+		.matCaps = {
+			metalOrangeMatcap,
+			metalGreenMatcap
+		}
 	};
 
 	SDL_SetWindowOpacity(appProperties.window, 1.0);

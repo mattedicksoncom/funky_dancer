@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 
 	size_t arraySize = header.width * header.height * (header.bitsPerPixel / 8);
 	//fprintf(file, "unsigned char* testMatcap = {");
-	fprintf(file, "unsigned char %s[] = {", argv[1]);
+	fprintf(file, "unsigned char %sMatcap[] = {", argv[1]);
 	for (size_t i = 0; i < arraySize; ++i) {
 		fprintf(file, "%d", imageData[i]);
 		if (i < arraySize - 1) {
