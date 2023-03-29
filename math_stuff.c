@@ -116,7 +116,7 @@ struct Mat4 QuaternionToMatrix(struct Quaternion q) {
     return result;
 }
 
-void trs(struct mesh *outMesh,
+void trs(struct Mesh *outMesh,
          float tx, float ty, float tz,
          float rx, float ry, float rz,
          float sx, float sy, float sz) {
@@ -173,7 +173,7 @@ void trs(struct mesh *outMesh,
 }
 
 void eularRotate(
-	struct mesh *outMesh,
+	struct Mesh *outMesh,
     float rx,
 	float ry,
 	float rz

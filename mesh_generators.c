@@ -1,4 +1,4 @@
-void generateSphere(float radius, int subdivisions, struct mesh *outMesh) {
+void generateSphere(float radius, int subdivisions, struct Mesh *outMesh) {
 	int i, j;
 	int vertCount = 0;
 	int faceCount = 0;
@@ -43,7 +43,7 @@ void generateSphere(float radius, int subdivisions, struct mesh *outMesh) {
 	outMesh->faceCount = faceCount / 3;
 }
 
-void generateCube(float width, float length, float height, struct mesh *outMesh) {
+void generateCube(float width, float length, float height, struct Mesh *outMesh) {
 	float *v;
 	int *f;
 

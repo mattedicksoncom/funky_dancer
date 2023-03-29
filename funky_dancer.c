@@ -4,11 +4,13 @@
 #include <math.h>
 
 #include "common_structs.c"
+#include "game_structs.c"
 #include "mat4.c"
 #include "math_stuff.c"
 #include "pixel_drawing.c"
 #include "mesh_generators.c"
-#include "matcap_test.c"
+#include "./matcaps/metalOrange.c"
+#include "./matcaps/metalGreen.c"
 #include "test_mesh.c"
 
 #ifdef __EMSCRIPTEN__
@@ -55,10 +57,10 @@ uint32_t multiplyColorByFloat(uint32_t color, float factor) {
 }
 
 void draw_scene(char* pixels,
-                int width, int height, struct mesh *sphereMesh_ptr,
+                int width, int height, struct Mesh *sphereMesh_ptr,
                 struct OrthographicCamera3D *camera_ptr, 
-                float *depthBuffer, char *matCap1) {
-    struct mesh sphereMesh = *sphereMesh_ptr;
+                float *depthBuffer, unsigned char *matCap1) {
+    struct Mesh sphereMesh = *sphereMesh_ptr;
 	uint32_t color = sphereMesh.color;
 	struct Vec3f light_dir = { .x = 0, .y = 0, .z = -1 };
 
@@ -188,7 +190,7 @@ void draw_scene(char* pixels,
 	}
 }
 
-void cloneMesh(struct mesh *originalMesh, struct mesh *newMesh) {
+void cloneMesh(struct Mesh *originalMesh, struct Mesh *newMesh) {
     // Allocate memory for the vertices and copy the values
     // if (newMesh->vert != NULL) {
     // free(newMesh->vert);
@@ -206,7 +208,7 @@ void cloneMesh(struct mesh *originalMesh, struct mesh *newMesh) {
     newMesh->faceCount = originalMesh->faceCount;
 }
 
-void cloneMeshToScene(struct mesh *originalMesh, struct mesh *newMesh) {
+void cloneMeshToScene(struct Mesh *originalMesh, struct Mesh *newMesh) {
     // Allocate memory for the vertices and copy the values
     // if (newMesh->vert != NULL) {
     // free(newMesh->vert);
@@ -226,7 +228,7 @@ void cloneMeshToScene(struct mesh *originalMesh, struct mesh *newMesh) {
 	newMesh->color = originalMesh->color;
 }
 
-void cloneMeshToScene_NOMALLOC(struct mesh *originalMesh, struct mesh *newMesh) {
+void cloneMeshToScene_NOMALLOC(struct Mesh *originalMesh, struct Mesh *newMesh) {
     memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
     newMesh->vertCount = originalMesh->vertCount;
 
@@ -235,7 +237,7 @@ void cloneMeshToScene_NOMALLOC(struct mesh *originalMesh, struct mesh *newMesh) 
 
 	newMesh->color = originalMesh->color;
 }
-void freeMem(struct mesh *sceneObjects[], int sceneObjectsCounter) {
+void freeMem(struct Mesh *sceneObjects[], int sceneObjectsCounter) {
     // free the memory for these two things
     free(sceneObjects[sceneObjectsCounter]->vert);
     free(sceneObjects[sceneObjectsCounter]->face);
@@ -245,8 +247,8 @@ void iterateCounter(int *sceneObjectCounter_ptr) {
 	(*sceneObjectCounter_ptr)++;
 }
 
-void testCloneMesh(struct mesh *sceneObjects[], int sceneObjectsCounter, struct mesh *originalMesh2) {
-    struct mesh *newMesh2 = sceneObjects[sceneObjectsCounter];
+void testCloneMesh(struct Mesh *sceneObjects[], int sceneObjectsCounter, struct Mesh *originalMesh2) {
+    struct Mesh *newMesh2 = sceneObjects[sceneObjectsCounter];
 
     cloneMeshToScene_NOMALLOC(originalMesh2, newMesh2);
 
@@ -255,7 +257,7 @@ void testCloneMesh(struct mesh *sceneObjects[], int sceneObjectsCounter, struct 
 
 void recurseChildren(
 	int delta,
-	struct mesh *sceneObjects[],
+	struct Mesh *sceneObjects[],
 	int *sceneObjectsCounter_ptr,
 	struct SceneObject *currentSceneObject,
 	struct Vec3f transformRotationStack[],
@@ -265,13 +267,18 @@ void recurseChildren(
 ) {
     int sceneObjectsCounter = *sceneObjectsCounter_ptr;
 
-#ifdef __EMSCRIPTEN__
-#else
-	freeMem(sceneObjects, sceneObjectsCounter); // add back in! breaks emscripten for some reason
-#endif
+//#ifdef __EMSCRIPTEN__
+//#else
+	//freeMem(sceneObjects, sceneObjectsCounter); // add back in! breaks emscripten for some reason, r maybe not needed since memcpy?
+//#endif
+	//printf("firts print\n");
+	//printf("%f cool stuff\n", sceneObjects[sceneObjectsCounter]->vert[0]);
+	//printf("second print\n");
+	//free(sceneObjects[sceneObjectsCounter]->vert);
+	//free(sceneObjects[sceneObjectsCounter]->face);
 
 	testCloneMesh(sceneObjects, sceneObjectsCounter, currentSceneObject->mesh);
-	struct mesh *currentMesh = sceneObjects[sceneObjectsCounter];
+	struct Mesh *currentMesh = sceneObjects[sceneObjectsCounter];
 
 	struct Transform currentTransform = currentSceneObject->transform;
 	struct Quaternion currentRotation = currentTransform.rotation;
@@ -330,16 +337,16 @@ void recurseChildren(
 }
 
 void recurseChildrenSetup(
-	struct mesh *sceneObjects[],
+	struct Mesh *sceneObjects[],
 	int *sceneObjectsCounter_ptr,
 	struct SceneObject *sceneObjectsForReal
 ) {
 	int sceneObjectsCounter = *sceneObjectsCounter_ptr;
 
-	struct mesh *originalMesh = sceneObjectsForReal->mesh;
+	struct Mesh *originalMesh = sceneObjectsForReal->mesh;
 
 	// Create a new mesh for the scene
-	struct mesh *newMesh = malloc(sizeof(struct mesh));
+	struct Mesh *newMesh = malloc(sizeof(struct Mesh));
 
 	// Clone the original mesh into the new mesh
 	cloneMeshToScene(originalMesh, newMesh);
@@ -461,6 +468,13 @@ void emscriptenLoop(void *arg) {
 	//free(depthBuffer);
 
 	appProperties->delta++;
+
+//#if defined(__has_feature)
+//#if __has_feature(address_sanitizer)
+//	// code for ASan-enabled builds
+//	__lsan_do_leak_check();
+//#endif
+//#endif
 }
 
 void nativeLoop(void *arg) {
@@ -484,9 +498,7 @@ void nativeLoop(void *arg) {
 
 	// attempt to render the scene meshes ----------------------------------
 	for (int i = 0; i < appProperties->sceneObjectForRealCount; i++) {
-		struct Vec3f cumulativeRotation[500] = {{.x = 0, .y = 0, .z = 0}};
-		struct Vec3f cumulativeTransform[500] = {{.x = 0, .y = 0, .z = 0}};
-		struct SceneObject sceneObjectStack[500];
+		struct SceneObject sceneObjectStack[1];
 		recurseChildren(
 			appProperties->delta * 2,
 			appProperties->sceneObjects,
@@ -531,7 +543,10 @@ int main(int argc, char *argv[]) {
 
     Uint32 startTicks, frameTicks;
 
-	unsigned char* imageData = testMatcap;
+	//unsigned char* imageData = metalOrange;
+	unsigned char* imageData = metalGreen;
+
+
 	struct AppProperties appProperties = { 
 		.width = 640, 
 		.height = 480,

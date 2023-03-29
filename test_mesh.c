@@ -1,5 +1,5 @@
 void setupTestMesh(struct AppProperties *appProperties) {
-	struct mesh *sphereMesh = malloc(sizeof(struct mesh));
+	struct Mesh *sphereMesh = malloc(sizeof(struct Mesh));
 	int subdivisions = 80;
 	generateSphere(0.3, subdivisions, sphereMesh);
 	sphereMesh->color = 0xff992255;
@@ -22,7 +22,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	appProperties->sceneObjectsForReal[appProperties->sceneObjectForRealCount++] = testSphere;
 
 	// test rendering a scene object
-	struct mesh *sceneCubeTest = malloc(sizeof(struct mesh));
+	struct Mesh *sceneCubeTest = malloc(sizeof(struct Mesh));
 	generateCube(1.0, 1.0, 1.0, sceneCubeTest);
 	sceneCubeTest->color = 0x2299ff55;
 
@@ -46,7 +46,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	appProperties->sceneObjectsForReal[appProperties->sceneObjectForRealCount++] = testObject;
 
 	//// right arm
-	struct mesh *rightArmMesh = malloc(sizeof(struct mesh));
+	struct Mesh *rightArmMesh = malloc(sizeof(struct Mesh));
 	rightArmMesh->color = 0x2299ff55;
 	generateCube(1.0, 1.0, 1.0, rightArmMesh);
 	trs(rightArmMesh,
@@ -69,7 +69,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	testObject->childCount++;
 
 	//// right forearm arm
-	struct mesh *rightForeArmMesh = malloc(sizeof(struct mesh));
+	struct Mesh *rightForeArmMesh = malloc(sizeof(struct Mesh));
 	rightForeArmMesh->color = 0x2299ff55;
 	generateCube(1.0, 1.0, 1.0, rightForeArmMesh);
 	trs(rightForeArmMesh,
@@ -93,7 +93,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	printf("%i", rightArmObject->childCount);
 //
 	//// test left arm mesh
-	struct mesh *leftArmMesh = malloc(sizeof(struct mesh));
+	struct Mesh *leftArmMesh = malloc(sizeof(struct Mesh));
 	leftArmMesh->color = 0x2299ff55;
 	generateCube(1.0, 1.0, 1.0, leftArmMesh);
 	trs(leftArmMesh,
@@ -116,7 +116,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	testObject->childCount++;
 //
 	//// left forearm arm
-	struct mesh *leftForeArmMesh = malloc(sizeof(struct mesh));
+	struct Mesh *leftForeArmMesh = malloc(sizeof(struct Mesh));
 	leftForeArmMesh->color = 0x2299ff55;
 	generateCube(1.0, 1.0, 1.0, leftForeArmMesh);
 	trs(leftForeArmMesh,
@@ -137,7 +137,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	leftArmObject->childCount++;
 
 
-	struct mesh *leftForeArmMesh2 = malloc(sizeof(struct mesh));
+	struct Mesh *leftForeArmMesh2 = malloc(sizeof(struct Mesh));
 	leftForeArmMesh2->color = 0x2299ff55;
 	generateCube(1.0, 1.0, 1.0, leftForeArmMesh2);
 	trs(leftForeArmMesh2,
@@ -192,7 +192,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	//rightArmObject.childCount++;
 //
 	//// right leg
-	struct mesh *rightLegMesh = malloc(sizeof(struct mesh));
+	struct Mesh *rightLegMesh = malloc(sizeof(struct Mesh));
 	rightLegMesh->color = 0x2299ff55;
 	generateCube(1.0, 1.0, 1.0, rightLegMesh);
 	trs(rightLegMesh,
@@ -214,7 +214,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 
 //
 	//// left leg
-	struct mesh *leftLegMesh = malloc(sizeof(struct mesh));
+	struct Mesh *leftLegMesh = malloc(sizeof(struct Mesh));
 	leftLegMesh->color = 0x2299ff55;
 	generateCube(1.0, 1.0, 1.0, leftLegMesh);
 	trs(leftLegMesh,

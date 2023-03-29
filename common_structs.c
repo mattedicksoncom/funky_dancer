@@ -1,10 +1,4 @@
-struct mesh {
-	float *vert;
-	int vertCount;
-	int *face;
-	int faceCount;
-	uint32_t color;
-};
+
 
 struct Vec3f {
 	float x;
@@ -42,48 +36,10 @@ struct Transform {
 };
 
 struct SceneObject {
-	struct mesh *mesh;
+	struct Mesh *mesh;
 	uint32_t color;
 	struct Transform transform;
 	struct Vector3 attachPosition;
 	struct SceneObject *children[10]; // max 10 for now
 	int childCount;
-};
-
-struct MouseHandler {
-	int startX;
-	int startY;
-	bool isDown;
-};
-
-struct OrthographicCamera3D {
-	struct Vec3f position;
-	struct Vec3f rotation;
-	struct Quaternion q_rotation;
-};
-
-struct AppProperties {
-	int width;
-	int height;
-	SDL_Window *window;
-	SDL_Surface *screen;
-	SDL_Surface *surface;
-	SDL_Renderer *renderer;
-	SDL_Texture *texture;
-	int delta;
-	struct MouseHandler mouseHandler; // change to a proper set up
-	struct OrthographicCamera3D camera; // change to a proper set up
-	struct mesh *sceneObjects[500];
-	struct SceneObject *sceneObjectsForReal[500];
-	struct Vec3f transformPositionStack[500];
-	struct Vec3f transformRotationStack[500];
-	int meshCount;
-	int sceneMeshCount;
-	int sceneObjectForRealCount;
-	int sceneObjectsCounter2;
-	int frameTicks;
-	int startTicks;
-	int finishTheFunk;
-	float* depthBuffer;
-	char* matCap1;
 };
