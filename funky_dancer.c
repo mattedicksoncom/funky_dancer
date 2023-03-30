@@ -11,6 +11,7 @@
 #include "mesh_generators.c"
 #include "./matcaps/metalOrange.c"
 #include "./matcaps/metalGreen.c"
+#include "./matcaps/metalBlue.c"
 #include "test_mesh.c"
 
 #ifdef __EMSCRIPTEN__
@@ -568,7 +569,8 @@ int main(int argc, char *argv[]) {
 		.matCap1 = imageData,
 		.matCaps = {
 			metalOrangeMatcap,
-			metalGreenMatcap
+			metalGreenMatcap,
+			metalBlueMatcap
 		}
 	};
 

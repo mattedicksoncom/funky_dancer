@@ -12,7 +12,8 @@ struct OrthographicCamera3D {
 //shouldn't use an enum in this file but live fast, live long
 enum MatCap {
 	metalOrange = 0,
-	metalGreen = 1
+	metalGreen = 1,
+	metalBlue = 2
 };
 
 struct Mesh {
@@ -55,6 +56,7 @@ struct AppProperties {
 	int startTicks;
 	int finishTheFunk;
 	float* depthBuffer;
+	unsigned char* colorBuffer;
 	unsigned char* matCap1;
-	unsigned char* matCaps[2];
+	unsigned char* matCaps[3];
 };
