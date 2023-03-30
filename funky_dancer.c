@@ -18,40 +18,14 @@
 #include <emscripten.h>
 #endif
 
-struct Vec3f WorldToScreen3D(struct OrthographicCamera3D camera, struct Vec3f worldPoint) {
-    // calc view matrix
-    struct Mat4 translation = Mat4_Translation((struct Vec3f){
-                         .x = -camera.position.x,
-                         .y = -camera.position.y, 
-                         .z = -camera.position.z});
-    struct Mat4 rotation = QuaternionToMatrix(camera.q_rotation);
-    struct Mat4 view = Mat4_Multiply(translation, rotation);
-    // calc orthographic projection matrix
-    float left = -1.0f;
-    float right = 1.0f;
-    float top = 1.0f;
-    float bottom = -1.0f;
-    float near = -1.0f;
-    float far = 1.0f;
-    struct Mat4 projection = Mat4_Orthographic(left, right, top, bottom, near, far);
-
-    // calc view-projection matrix
-    struct Mat4 viewProjection = Mat4_Multiply(projection, view);
-
-    // transform world point to screen space
-    struct Vec3f screenPoint = Mat4_MultiplyVec3(viewProjection, worldPoint);
-
-    return screenPoint;
-}
-
-struct Vec3f WorldToScreen3D2(struct Mat4 cameraMatrix, struct Vec3f worldPoint) {
+struct Vec3f WorldToScreenPoint(struct Mat4 cameraMatrix, struct Vec3f worldPoint) {
 	// transform world point to screen space
 	struct Vec3f screenPoint = Mat4_MultiplyVec3(cameraMatrix, worldPoint);
 
 	return screenPoint;
 }
 
-struct Mat4 CameraByScreen(struct OrthographicCamera3D camera) {
+struct Mat4 CreateCameraMatrix(struct OrthographicCamera3D camera) {
 	// calc view matrix
 	struct Mat4 translation = Mat4_Translation((struct Vec3f){
 	                                           .x = -camera.position.x,
@@ -98,7 +72,7 @@ void draw_scene(char* pixels,
 	struct Vec3f screen_normal_coords[3]; 
 	struct Vec3f world_coords[3]; 
 
-	struct Mat4 camMatrix = CameraByScreen(*camera_ptr);
+	struct Mat4 camMatrix = CreateCameraMatrix(*camera_ptr);
 
 	for (int i = 0; i < sphereMesh.faceCount; i++) { 
 		//std::vector<int> face = model->face(i); 
@@ -116,7 +90,7 @@ void draw_scene(char* pixels,
 
 			// fix this!!!
 			//struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
-			struct Vec3f screenPoint_1 = WorldToScreen3D2(camMatrix, v0);
+			struct Vec3f screenPoint_1 = WorldToScreenPoint(camMatrix, v0);
 
 			float horiMult = 100;
 			float vertMult = 100;
@@ -572,7 +546,7 @@ void nativeLoop(void *arg) {
 	SDL_UpdateWindowSurface(appProperties->window);
 
 	// SDL_Delay(1000 / 12);
-	float targetFrameTime = 1000 / 144;
+	float targetFrameTime = 1000 / 60;
 
 	appProperties->frameTicks = SDL_GetTicks() - appProperties->startTicks;
 	if (appProperties->frameTicks < targetFrameTime) {
