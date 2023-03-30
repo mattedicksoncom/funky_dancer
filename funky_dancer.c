@@ -44,6 +44,36 @@ struct Vec3f WorldToScreen3D(struct OrthographicCamera3D camera, struct Vec3f wo
     return screenPoint;
 }
 
+struct Vec3f WorldToScreen3D2(struct Mat4 cameraMatrix, struct Vec3f worldPoint) {
+	// transform world point to screen space
+	struct Vec3f screenPoint = Mat4_MultiplyVec3(cameraMatrix, worldPoint);
+
+	return screenPoint;
+}
+
+struct Mat4 CameraByScreen(struct OrthographicCamera3D camera) {
+	// calc view matrix
+	struct Mat4 translation = Mat4_Translation((struct Vec3f){
+	                                           .x = -camera.position.x,
+	                                           .y = -camera.position.y, 
+	                                           .z = -camera.position.z});
+	struct Mat4 rotation = QuaternionToMatrix(camera.q_rotation);
+	struct Mat4 view = Mat4_Multiply(translation, rotation);
+	// calc orthographic projection matrix
+	float left = -1.0f;
+	float right = 1.0f;
+	float top = 1.0f;
+	float bottom = -1.0f;
+	float near = -1.0f;
+	float far = 1.0f;
+	struct Mat4 projection = Mat4_Orthographic(left, right, top, bottom, near, far);
+
+	// calc view-projection matrix
+	struct Mat4 viewProjection = Mat4_Multiply(projection, view);
+
+	return viewProjection;
+}
+
 uint32_t multiplyColorByFloat(uint32_t color, float factor) {
 	uint8_t r = (color >> 24) & 0xFF;
 	uint8_t g = (color >> 16) & 0xFF;
@@ -64,12 +94,15 @@ void draw_scene(char* pixels,
     struct Mesh sphereMesh = *sphereMesh_ptr;
 	uint32_t color = sphereMesh.color;
 	struct Vec3f light_dir = { .x = 0, .y = 0, .z = -1 };
+	struct Vec3f screen_coords[3]; 
+	struct Vec3f screen_normal_coords[3]; 
+	struct Vec3f world_coords[3]; 
+
+	struct Mat4 camMatrix = CameraByScreen(*camera_ptr);
 
 	for (int i = 0; i < sphereMesh.faceCount; i++) { 
 		//std::vector<int> face = model->face(i); 
-		struct Vec3f screen_coords[3]; 
-		struct Vec3f screen_normal_coords[3]; 
-		struct Vec3f world_coords[3]; 
+		
 		int faceIndex = i * 3;
 
 		for (int j = 0; j < 3; j++) {
@@ -82,7 +115,8 @@ void draw_scene(char* pixels,
 			};
 
 			// fix this!!!
-			struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
+			//struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
+			struct Vec3f screenPoint_1 = WorldToScreen3D2(camMatrix, v0);
 
 			float horiMult = 100;
 			float vertMult = 100;
@@ -520,11 +554,11 @@ void nativeLoop(void *arg) {
 
 	char *pixels = appProperties->surface->pixels;
 
-	float depthBuffer[640 * 480] = { 0 };
+	//float depthBuffer[640 * 480] = { 0 };
 	for (int i = 0; i < sceneObjectsCounter; i++) {
 		int matcapIndex = appProperties->sceneObjects[i]->matcap;
 		unsigned char* currentMatcap = appProperties->matCaps[matcapIndex];
-		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, depthBuffer, currentMatcap);
+		draw_scene(pixels, 640, 480, appProperties->sceneObjects[i], &appProperties->camera, appProperties->depthBuffer, currentMatcap);
 	}
 
 	SDL_UnlockSurface(appProperties->surface);
@@ -573,6 +607,8 @@ int main(int argc, char *argv[]) {
 			metalBlueMatcap
 		}
 	};
+
+	appProperties.colorBuffer = malloc(sizeof(unsigned char) * 640 * 480 * 4); // char should be one but careful
 
 	SDL_SetWindowOpacity(appProperties.window, 1.0);
 
