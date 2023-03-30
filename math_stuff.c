@@ -30,24 +30,18 @@ void vec3f_normalize(struct Vec3f *v) {
 }
 
 struct Vec3f barycentric(struct Vec3f vert1, struct Vec3f vert2, struct Vec3f vert3, struct Vec3f pixelCoord) {
-	struct Vec3f s[2];
+	struct Vec3f s0 = { vert3.x - vert1.x, vert2.x - vert1.x, vert1.x - pixelCoord.x };
+	struct Vec3f s1 = { vert3.y - vert1.y, vert2.y - vert1.y, vert1.y - pixelCoord.y };
 
-	s[0].x = vert3.x - vert1.x;
-	s[0].y = vert2.x - vert1.x;
-	s[0].z = vert1.x - pixelCoord.x;
-
-	s[1].x = vert3.y - vert1.y;
-	s[1].y = vert2.y - vert1.y;
-	s[1].z = vert1.y - pixelCoord.y;
-
-	struct Vec3f barycentricCoords = vec3f_CrossProduct(s[0], s[1]);
+	struct Vec3f barycentricCoords = vec3f_CrossProduct(s0, s1);
 
 	// check if outside the triangle
 	if (fabs(barycentricCoords.z) > 1e-2) {
+		float invZ = 1.0f / barycentricCoords.z;
 		return (struct Vec3f) {
-			1.0f - (barycentricCoords.x + barycentricCoords.y) / barycentricCoords.z,
-			barycentricCoords.y / barycentricCoords.z,
-			barycentricCoords.x / barycentricCoords.z
+			1.0f - (barycentricCoords.x + barycentricCoords.y) * invZ,
+			barycentricCoords.y * invZ,
+			barycentricCoords.x * invZ
 		};
 	}
 	return (struct Vec3f) { -1, 1, 1 };
