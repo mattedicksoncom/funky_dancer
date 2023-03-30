@@ -182,8 +182,8 @@ void draw_scene(char* pixels,
 				.z = sphereMesh.vert[b * 3 + 2]
 			};
 
-			struct Vec3f screenPoint_1 = WorldToScreen3D(*camera_ptr, v0);
-			struct Vec3f screenPoint_2 = WorldToScreen3D(*camera_ptr, v1);
+			struct Vec3f screenPoint_1 = WorldToScreenPoint(camMatrix, v0);
+			struct Vec3f screenPoint_2 = WorldToScreenPoint(camMatrix, v1);
 
 			float horiMult = 100;
 			float vertMult = 100;
