@@ -533,6 +533,10 @@ void nativeLoop(void *arg) {
 
 	SDL_FillRect(appProperties->surface, NULL, 0xffffffff);
 
+	for (int i = 0; i < 640 * 480; ++i) {
+		appProperties->depthBuffer[i] = 0x00000000;
+	}
+
 	int sceneObjectsCounter = 0;
 
 	// attempt to render the scene meshes ----------------------------------
