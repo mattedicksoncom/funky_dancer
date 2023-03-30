@@ -1,11 +1,11 @@
 void setupTestMesh(struct AppProperties *appProperties) {
 	struct Mesh *sphereMesh = malloc(sizeof(struct Mesh));
-	int subdivisions = 80;
+	int subdivisions = 10;
 	generateSphere(0.3, subdivisions, sphereMesh);
 	sphereMesh->color = 0xff992255;
 	sphereMesh->matcap = metalOrange;
 	trs(sphereMesh,
-	    0.0, -0.5, 0.0,
+	    1.0, -0.5, 0.0,
 	    0, 0, 0,
 	    1.0, 1.0, 1.0);
 
@@ -27,7 +27,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	sphereMesh2->color = 0xff992255;
 	sphereMesh2->matcap = metalGreen;
 	trs(sphereMesh2,
-	    0.0, -0.48, 0.05,
+	    1.0, -0.48, 0.05,
 	    0, 0, 0,
 	    1.0, 1.0, 1.0);
 
@@ -44,6 +44,72 @@ void setupTestMesh(struct AppProperties *appProperties) {
 
 	appProperties->sceneObjectsForReal[appProperties->sceneObjectForRealCount++] = testSphere2;
 
+	struct Mesh *zdirMesh = malloc(sizeof(struct Mesh));
+	generateSphere(0.3, 30, zdirMesh);
+	zdirMesh->color = 0xff992255;
+	zdirMesh->matcap = metalBlue;
+	trs(zdirMesh,
+	    0.0, 0, 0.5,
+	    0, 0, 0,
+	    0.2, 0.2, 1.0);
+
+	struct SceneObject *zdirObject = malloc(sizeof(struct SceneObject));
+	zdirObject->mesh = zdirMesh;
+	zdirObject->color = 0xff992255;
+	zdirObject->transform = (struct Transform) {
+		.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
+		.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
+		.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
+	};
+	zdirObject->attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	zdirObject->childCount = 0;
+
+	appProperties->sceneObjectsForReal[appProperties->sceneObjectForRealCount++] = zdirObject;
+
+	struct Mesh *xdirMesh = malloc(sizeof(struct Mesh));
+	generateSphere(0.3, 30, xdirMesh);
+	xdirMesh->color = 0xff992255;
+	xdirMesh->matcap = metalOrange;
+	trs(xdirMesh,
+	    0.5, 0, 0.0,
+	    0, 0, 0,
+	    1.0, 0.2, 0.2);
+
+	struct SceneObject *xdirObject = malloc(sizeof(struct SceneObject));
+	xdirObject->mesh = xdirMesh;
+	xdirObject->color = 0xff992255;
+	xdirObject->transform = (struct Transform) {
+		.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
+		.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
+		.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
+	};
+	xdirObject->attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	xdirObject->childCount = 0;
+
+	appProperties->sceneObjectsForReal[appProperties->sceneObjectForRealCount++] = xdirObject;
+
+	struct Mesh *ydirMesh = malloc(sizeof(struct Mesh));
+	generateSphere(0.3, 30, ydirMesh);
+	ydirMesh->color = 0xff992255;
+	ydirMesh->matcap = metalGreen;
+	trs(ydirMesh,
+	    0.0, 0.5, 0.0,
+	    0, 0, 0,
+	    0.2, 1.0, 0.2);
+
+	struct SceneObject *ydirObject = malloc(sizeof(struct SceneObject));
+	ydirObject->mesh = ydirMesh;
+	ydirObject->color = 0xff992255;
+	ydirObject->transform = (struct Transform) {
+		.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
+		.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
+		.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
+	};
+	ydirObject->attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
+	ydirObject->childCount = 0;
+
+	appProperties->sceneObjectsForReal[appProperties->sceneObjectForRealCount++] = ydirObject;
+
 	// test rendering a scene object
 	struct Mesh *sceneCubeTest = malloc(sizeof(struct Mesh));
 	generateCube(1.0, 1.0, 1.0, sceneCubeTest);
@@ -57,10 +123,10 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	trs(sceneCubeTest,
 	    0.0, 0.5, 0.0,
 	    0, 0, 0,
-	    0.3, 1.0, 0.3);
+	    0.1, 1.0, 0.1);
 
 	testObject->transform = (struct Transform) {
-		.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
+		.position = (struct Vector3) { .x = 1.0f, .y = 0.0f, .z = 0.0f },
 		.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
 		.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
 	};
@@ -77,7 +143,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	trs(rightArmMesh,
 	    -0.5, 0.0, 0.0,
 	    0, 0, 0,
-	    1, 0.3, 0.3);
+	    1, 0.1, 0.1);
 	struct SceneObject *rightArmObject = malloc(sizeof(struct SceneObject));
 	rightArmObject->mesh = rightArmMesh;
 	rightArmObject->color = 0x2299ff55;
@@ -126,7 +192,7 @@ void setupTestMesh(struct AppProperties *appProperties) {
 	trs(leftArmMesh,
 	    0.5, 0.0, 0.0,
 	    0, 0, 0,
-	    1, 0.3, 0.3);
+	    1, 0.1, 0.1);
 	struct SceneObject *leftArmObject = malloc(sizeof(struct SceneObject));
 	leftArmObject->mesh = leftArmMesh;
 	leftArmObject->color = 0x2299ff55;
