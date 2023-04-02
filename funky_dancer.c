@@ -199,24 +199,6 @@ void draw_scene(char* pixels,
 	}
 }
 
-void cloneMesh(struct Mesh *originalMesh, struct Mesh *newMesh) {
-    // Allocate memory for the vertices and copy the values
-    // if (newMesh->vert != NULL) {
-    // free(newMesh->vert);
-    //}
-    newMesh->vert = malloc(sizeof(float) * originalMesh->vertCount * 3);
-    memcpy(newMesh->vert, originalMesh->vert, sizeof(float) * originalMesh->vertCount * 3);
-    newMesh->vertCount = originalMesh->vertCount;
-
-    // Allocate memory for the faces and copy the values
-    // if (newMesh->face != NULL) {
-    // free(newMesh->face);
-    //}
-    newMesh->face = malloc(sizeof(int) * originalMesh->faceCount * 3);
-    memcpy(newMesh->face, originalMesh->face, sizeof(int) * originalMesh->faceCount * 3);
-    newMesh->faceCount = originalMesh->faceCount;
-}
-
 void cloneMeshToScene(struct Mesh *originalMesh, struct Mesh *newMesh) {
     // Allocate memory for the vertices and copy the values
     // if (newMesh->vert != NULL) {
@@ -277,16 +259,6 @@ void recurseChildren(
 	int transformStackDepth
 ) {
     int sceneObjectsCounter = *sceneObjectsCounter_ptr;
-
-//#ifdef __EMSCRIPTEN__
-//#else
-	//freeMem(sceneObjects, sceneObjectsCounter); // add back in! breaks emscripten for some reason, r maybe not needed since memcpy?
-//#endif
-	//printf("firts print\n");
-	//printf("%f cool stuff\n", sceneObjects[sceneObjectsCounter]->vert[0]);
-	//printf("second print\n");
-	//free(sceneObjects[sceneObjectsCounter]->vert);
-	//free(sceneObjects[sceneObjectsCounter]->face);
 
 	testCloneMesh(sceneObjects, sceneObjectsCounter, currentSceneObject->mesh);
 	struct Mesh *currentMesh = sceneObjects[sceneObjectsCounter];
