@@ -236,10 +236,6 @@ void freeMem(struct Mesh *sceneObjects[], int sceneObjectsCounter) {
     free(sceneObjects[sceneObjectsCounter]->face);
 }
 
-void iterateCounter(int *sceneObjectCounter_ptr) {
-	(*sceneObjectCounter_ptr)++;
-}
-
 void testCloneMesh(struct Mesh *sceneObjects[], int sceneObjectsCounter, struct Mesh *originalMesh2) {
     struct Mesh *newMesh2 = sceneObjects[sceneObjectsCounter];
 
@@ -305,7 +301,8 @@ void recurseChildren(
 		.z = currentTransform.position.z
 	};
 
-    iterateCounter(sceneObjectsCounter_ptr);
+    //iterateCounter(sceneObjectsCounter_ptr);
+	(*sceneObjectsCounter_ptr)++;
 
 	for (int j = 0; j < currentSceneObject->childCount; j++) {
 		recurseChildren(delta * 2,
@@ -338,7 +335,8 @@ void recurseChildrenSetup(
 	sceneObjects[sceneObjectsCounter] = newMesh;
 
 	//sceneObjectsCounter2++;
-	iterateCounter(sceneObjectsCounter_ptr);
+	//iterateCounter(sceneObjectsCounter_ptr);
+	(*sceneObjectsCounter_ptr)++;
 
 	// need to handle this better
 	for (int j = 0; j < sceneObjectsForReal->childCount; j++) {
@@ -581,6 +579,76 @@ int main(int argc, char *argv[]) {
 		.rotation = {.x = 0.0f, .y = 0.0f, .z = 0.0f},
 		.q_rotation = {.w = 0.0f, .x = 0.0f, .y = 0.0f, .z = 0.0f},
 	};
+
+	FILE *file = fopen("./resources/testobject.txt", "r");
+
+	if (!file) {
+		printf("Error: unable to open the data file\n");
+		return 1;
+	}
+	char line[256];
+
+	while (fgets(line, sizeof(line), file)) {
+		char materialName[16];
+		char objectType[16];
+		struct Vec3f translate;
+		struct Vec3f rotate;
+		struct Vec3f scale;
+
+		struct Mesh *zdirMesh = malloc(sizeof(struct Mesh));
+
+		int valuesRead = sscanf(line, "%s %s {%f, %f, %f} {%f, %f, %f} {%f, %f, %f}",
+		                        objectType,
+		                        materialName,
+		                        &translate.x, &translate.y, &translate.z,
+		                        &rotate.x, &rotate.y, &rotate.z,
+		                        &scale.x, &scale.y, &scale.z);
+
+		// check all properties are in the line
+		if (valuesRead == 11) {
+			if (strcmp(materialName, "metalBlue") == 0) {
+				zdirMesh->matcap = metalBlue;
+			} else if (strcmp(materialName, "metalOrange") == 0) {
+				zdirMesh->matcap = metalOrange;
+			} else if (strcmp(materialName, "metalGreen") == 0) {
+				zdirMesh->matcap = metalGreen;
+			} else {
+				printf("Error: unknown material name '%s'\n", materialName);
+				continue;
+			}
+
+			if (strcmp(objectType, "sphere") == 0) {
+				generateSphere(0.3, 30, zdirMesh);
+			} else {
+				printf("Error: unknown mesh type '%s'\n", materialName);
+				continue;
+			}
+
+			zdirMesh->color = 0xff992255;
+
+			trs(zdirMesh,
+			    translate.x, translate.y, translate.z,
+			    rotate.x, rotate.y, rotate.z,
+			    scale.x, scale.y, scale.z);
+
+			struct SceneObject *zdirObject = malloc(sizeof(struct SceneObject));
+			zdirObject->mesh = zdirMesh;
+			zdirObject->color = 0xff992255;
+			zdirObject->transform = (struct Transform) {
+				.position = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f },
+				.rotation = (struct Quaternion) { .w = 1.0, .x = 0.0f, .y = 0.0f, .z = 0.0f },
+				.scale = (struct Vector3) { .x = 1.0f, .y = 1.0f, .z = 1.0f },
+			};
+			zdirObject->attachPosition = (struct Vector3) { .x = 0.0f, .y = 0.0f, .z = 0.0f };
+			zdirObject->childCount = 0;
+			
+			appProperties.sceneObjectsForReal[appProperties.sceneObjectForRealCount++] = zdirObject;
+
+			printf("line read success\n");
+		} else {
+			printf("Error: you've made an oopsie '%s'\n", line);
+		}
+	}
 
 	// generate the mesh before the loop
 	setupTestMesh(&appProperties);
